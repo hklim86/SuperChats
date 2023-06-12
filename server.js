@@ -19,17 +19,18 @@ var sessionToken = [];
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(cors({ origin: /http:\/\/localhost/ }));
-//app.use(cors({ origin: /http:\/\/blasting.erp213.com/ }));
+//app.use(cors({ origin: /http:\/\/localhost/ }));
+app.use(cors({ origin: /http:\/\/194.233.79.27/ })); 
 app.options("*", cors());
 
 var replyMessage = [];
 
 const router = express.Router();
+
 router.get("/", (req, res) => {
     res.send("OK");
-});
-
+}); 
+ 
 router.put("/:session/check", async function (req, res) {
     let client = clientArray[req.params.session];
     let action = req.body.action || false;
@@ -273,13 +274,14 @@ router.get("/:session/connect", async function (req, res) {
 
                     } catch (error) { }
                 },
-                headless: false, // Headless chrome
+                headless: true, // Headless chrome
                 devtools: false, // Open devtools by default
                 useChrome: true, // If false will use Chromium instance
                 debug: false, // Opens a debug session
                 logQR: true, // Logs QR automatically in terminal
                 browserWS: '', // If u want to use browserWSEndpoint
-                browserArgs: [''], // Parameters to be added into the chrome browser instance
+                browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
+                //browserArgs: [''], // Parameters to be added into the chrome browser instance
                 puppeteerOptions: {
                     userDataDir: './tokens/' + req.params.session, // or your custom directory
                 }, // Will be passed to puppeteer.launch
@@ -1037,13 +1039,14 @@ router.get("/:session/channelConnect", async function (req, res) {
 
                     } catch (error) { }
                 },
-                headless: false, // Headless chrome
+                headless: true, // Headless chrome
                 devtools: false, // Open devtools by default
                 useChrome: true, // If false will use Chromium instance
                 debug: false, // Opens a debug session
                 logQR: true, // Logs QR automatically in terminal
                 browserWS: '', // If u want to use browserWSEndpoint
-                browserArgs: [''], // Parameters to be added into the chrome browser instance
+                browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
+                //browserArgs: [''], // Parameters to be added into the chrome browser instance
                 puppeteerOptions: {
                     userDataDir: './tokens/' + req.params.session, // or your custom directory
                 }, // Will be passed to puppeteer.launch
@@ -1304,14 +1307,14 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
                 }
                 //isLogged || notLogged || browserClose || qrReadSuccess || qrReadFail || autocloseCalled || desconnectedMobile || deleteToken
             },
-            headless: false, // Headless chrome
+            headless: true, // Headless chrome
             devtools: false, // Open devtools by default
             useChrome: true, // If false will use Chromium instance
             debug: false, // Opens a debug session
             logQR: true, // Logs QR automatically in terminal
             browserWS: '', // If u want to use browserWSEndpoint
-            //browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-            browserArgs: [''],
+            browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
+            //browserArgs: [''],
             puppeteerOptions: {
                 userDataDir: './tokens/' + req.params.session, // or your custom directory
             }, // Will be passed to puppeteer.launch
