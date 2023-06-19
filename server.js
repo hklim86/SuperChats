@@ -6,7 +6,7 @@ const bodyParser = require("body-parser");
 const wppconnect = require('@wppconnect-team/wppconnect');
 const puppeteer = require('puppeteer');
 const api = require('axios');
-const port = process.env.PORT || 1337;
+const port = process.env.PORT || 3000;
 const apiRoot = "/api";
 const fs = require('fs');
 
