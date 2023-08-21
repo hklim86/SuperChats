@@ -10,6 +10,7 @@ const port = process.env.PORT || 3000;
 const apiRoot = "/api";
 const fs = require('fs');
 
+const {executablePath} = require('puppeteer');
 
 const app = express();
 var clientArray = [];
@@ -19,8 +20,7 @@ var sessionToken = [];
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-//app.use(cors({ origin: /http:\/\/localhost/ }));
-app.use(cors({ origin: /http:\/\/194.233.79.27/ })); 
+app.use(cors({ origin: /http:\/\/194.233.79.27/ }));
 app.options("*", cors());
 
 var replyMessage = [];
@@ -28,9 +28,74 @@ var replyMessage = [];
 const router = express.Router();
 
 router.get("/", (req, res) => {
-    res.send("OK");
-}); 
- 
+    res.send(executablePath());
+    //res.send("OK");
+});
+
+router.get("/:session/testing", async function (req, res) {
+    let client = clientArray[req.params.session];
+    let hook = req.query.hook;
+    let chatId = req.query.chatId;
+
+    //let result = await client.getAllChats('60175406366@c.us');
+
+    // client.getAllUnreadMessages().then(async (messages) => {
+    //client.getAllNewMessages().then(async (messages) => {
+
+    const GetMessagesParam = {
+        count: 30,
+        direction: null,
+        fromMe: false,
+        id: null
+    }
+
+    //client.getMessages('60175406366@c.us', GetMessagesParam).then(async (messages) => {
+
+    //    // Process the retrieved messages
+
+    //    let image_message = messages.find(obj => obj.type === 'image');
+
+    //    let media_message = await client.downloadFile(image_message);
+
+    //    console.log(media_message);
+
+    //    // Perform further operations on the messages as needed
+    //}).catch((error) => {
+    //    console.error('Error retrieving chat messages:', error);
+    //});
+
+    //await client.loadEarlierMessages('60175406366@c.us');
+
+    
+    client.getAllChats(false).then(async (messages) => {
+
+        console.log(messages);
+
+    }).catch((error) => {
+        console.error('Error retrieving chat messages:', error);
+    });
+
+    client.getAllMessagesInChat('60175406366@c.us', true, false).then(async (messages) => {
+
+        console.log(messages);
+
+    }).catch((error) => {
+        console.error('Error retrieving chat messages:', error);
+    });
+
+    client.getMessages(chatId + '@c.us', GetMessagesParam).then(async (messages) => {
+
+        console.log(messages);
+
+    }).catch((error) => {
+        console.error('Error retrieving chat messages:', error);
+    });
+
+    return res.json({
+        message: 'Retrieve Message SuccessFully'
+    });
+});
+
 router.put("/:session/check", async function (req, res) {
     let client = clientArray[req.params.session];
     let action = req.body.action || false;
@@ -51,7 +116,7 @@ router.put("/:session/check", async function (req, res) {
             return res.json({
                 message: 'Whatsapp browser not opened'
             });
-
+            
         } else if (action == "control") {
             if (control) {
                 if (control == "closeClient") {
@@ -72,7 +137,7 @@ router.put("/:session/check", async function (req, res) {
                                 Object.assign(browserSession[req.params.session], {
                                     offHook: offHook
                                 });
-                            }
+                            }                          
 
                             await client.close();
 
@@ -281,7 +346,6 @@ router.get("/:session/connect", async function (req, res) {
                 logQR: true, // Logs QR automatically in terminal
                 browserWS: '', // If u want to use browserWSEndpoint
                 browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-                //browserArgs: [''], // Parameters to be added into the chrome browser instance
                 puppeteerOptions: {
                     userDataDir: './tokens/' + req.params.session, // or your custom directory
                 }, // Will be passed to puppeteer.launch
@@ -350,17 +414,31 @@ router.get("/:session/disconnect", async function (req, res) {
     let client = clientArray[req.params.session];
 
     if (client != null) {
-        await clientArray[req.params.session].isMainReady();
 
-        await client.logout();
+        try {
+            await client.getConnectionState();
 
-        await client.close();
+            await clientArray[req.params.session].isMainReady();
 
-        callWebHook(client, req, 'status-find', { status: 'browserClose' });
+            await client.logout();
 
+            await client.close();
+
+        } catch {
+
+            callWebHook(client, req, 'status-find', { status: 'browserClose' });
+
+            return res.json({
+                message: "logout"
+            });
+        } finally {
+            callWebHook(client, req, 'status-find', { status: 'browserClose' });
+        }
+        
         return res.json({
             message: "logout"
         });
+        
     } else {
         return res.json({
             message: "notLogged"
@@ -404,7 +482,7 @@ router.get("/:session/closeClient", async function (req, res) {
             if (!offHook)
                 Object.assign(browserSession[req.params.session], {
                     offHook: offHook
-                });
+            });
         }
 
         return res.json({
@@ -474,7 +552,7 @@ router.get("/:session/getGroupList", async function (req, res) {
 
         if (clientConnection == "CONNECTED") {
 
-            let response = await client.getGroups()
+            let response = await client.getAllGroups()
 
             //clientArray[req.params.session] = undefined;
 
@@ -482,8 +560,31 @@ router.get("/:session/getGroupList", async function (req, res) {
 
             //callWebHook(client, req, 'status-find', { status: 'logout' });
 
+            //const filteredData = data.filter(item => {
+            //    const { isGroup, name } = item;
+            //    return isGroup && name.includes('(S1)');
+            //});
+
+            //for (const c of response) {
+            //    //const ids = c.groupMetadata.participants.map((p) => p.id._serialized);
+            //    const id = c.groupMetadata.id._serialized;
+            //    console.log(id);
+            //}
+
+            for (const c of response) {
+                //const ids = c.groupMetadata.participants.map((p) => p.id._serialized);
+                const subject = c.groupMetadata.subject;
+                const id = c.groupMetadata.id._serialized;
+
+                console.log(subject);
+                //if (subject.includes('(s1)')) {
+                //    console.log(id);
+                //}
+            }
+
+
             return res.json({
-                message: response
+                message: response['message']
             });
         }
     }
@@ -723,47 +824,70 @@ router.post("/:session/sendButton", async function (req, res) {
 
     if (client != undefined) {
         if (await client.getConnectionState() == "CONNECTED") {
+            //client.sendText(req.body.phoneNumber + '@c.us', 'WPPConnect message with buttons', {
+            //    useTemplateButtons: true, // False for legacy
+            //    buttons: [
+            //        {
+            //            url: 'https://wppconnect.io/',
+            //            text: 'WPPConnect Site'
+            //        },
+            //        {
+            //            phoneNumber: '+55 11 22334455',
+            //            text: 'Call me'
+            //        },
+            //        {
+            //            id: 'your custom id 1',
+            //            text: 'Some text'
+            //        },
+            //        {
+            //            id: 'another id 2',
+            //            text: 'Another text'
+            //        }
+            //    ],
+            //    title: 'Title text', // Optional
+            //    footer: 'Footer text' // Optional
+            //});
             client.sendText(
                 req.body.phoneNumber + '@c.us',
                 req.body.textMessage,
                 {
-                    useTemplateButtons: true, // False for legacy
+                    useTemplateButtons: false, // False for legacy
                     buttons: JSON.parse(req.body.buttons),
-                    /*[
-                    {
-                        url: 'https://wppconnect.io/',
-                        text: 'WPPConnect Site'
-                    },
-                    {
-                        phoneNumber: '+60107072567',
-                        text: 'Call me'
-                    },
-                    {
-                        text : 'Some text',
-                        id: 'id-123'
-                    },
-                    {
-                        id: 'another id 2',
-                        text: 'Another text',
-                        type: 'template'
-                    }
-                ],*/
+                        /*[
+                        {
+                            url: 'https://wppconnect.io/',
+                            text: 'WPPConnect Site'
+                        },
+                        {
+                            phoneNumber: '+60107072567',
+                            text: 'Call me'
+                        },
+                        {
+                            text : 'Some text',
+                            id: 'id-123'
+                        },
+                        {
+                            id: 'another id 2',
+                            text: 'Another text',
+                            type: 'template'
+                        }
+                    ],*/
                     //title: 'Title text' ,// Optional
                     //footer: 'Footer text' // Optional
                 }
             )
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });;
+            .then((result) => {
+                return res.json(result); //return object success
+            })
+            .catch((e) => {
+                return res.status(400).json({ message: e }); //return object error
+            });
         }
         else {
             return res.status(400).json("notLogged.");
         }
     }
-    else {
+   else {
         return res.status(400).json("notLogged.");
     }
 
@@ -1046,7 +1170,6 @@ router.get("/:session/channelConnect", async function (req, res) {
                 logQR: true, // Logs QR automatically in terminal
                 browserWS: '', // If u want to use browserWSEndpoint
                 browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-                //browserArgs: [''], // Parameters to be added into the chrome browser instance
                 puppeteerOptions: {
                     userDataDir: './tokens/' + req.params.session, // or your custom directory
                 }, // Will be passed to puppeteer.launch
@@ -1066,7 +1189,7 @@ router.get("/:session/channelConnect", async function (req, res) {
 
                 return res.json({
                     message: browserSession[req.params.session]
-                });
+                });             
 
             }).catch((e) => {
                 return null;
@@ -1081,12 +1204,15 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     if (!req.body.messageType) return res.status(400).json("messageType requred.");
 
     var messageType = req.body.messageType;
+    var messageSalesGpt = req.body.salesGpt;
 
     let client = clientArray[req.params.session];
 
-    Object.assign(browserSession[req.params.session], {
-        pauseListen: true
-    });
+    //if (req.body.salesGpt == "true") {
+    //    Object.assign(browserSession[req.params.session], {
+    //        pauseListen: true
+    //    }); 
+    //}       
 
     if (client != undefined) {
         if (await client.getConnectionState() != "CONNECTED") {
@@ -1106,6 +1232,12 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             await client
                 .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
                 .then((result) => {
+                    //console.log('send text api here', result);
+                    //onMessageCallWebHook(req, client, result);
+                    if (messageSalesGpt == 'true') {
+                        callWebHook(client, req, 'labelmessage', { messageId: result.id });
+                    }                   
+
                     return res.json(result); //return object success
                 })
                 .catch((e) => {
@@ -1254,7 +1386,7 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
                     message: browserSession[req.params.session]
                 });
             },
-            statusFind: async function (statusSession, session) {
+            statusFind: async function(statusSession, session) {
                 //console.log(`Whatsapp browser session ${session} checking: ${statusSession}`);
                 if (statusSession === 'desconnectedMobile') {
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
@@ -1276,7 +1408,7 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
                         //    }
                         //} 
                         browserSession[session] = undefined;
-                    }
+                    }                           
                     //console.log('Whatsapp browserClose');
                 } else if (statusSession == 'isLogged') {
                     //if (client != null) {
@@ -1332,16 +1464,33 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
             if (listenMessage === true) {
                 await listenMessages(client, req);
                 await listenAcks(client, req);
-            }
+            }            
+
+            await client.isMainReady();
+
+            //await clientArray[req.params.session].getAllUnreadMessages().then(async (messages) => {
+            //    // Process the retrieved messages
+
+            //    console.log(messages);
+
+            //    // Perform further operations on the messages as needed
+            //}).catch((error) => {
+            //    console.error('Error retrieving chat messages:', error);
+            //});
+
             return res.json({
                 message: browserSession[req.params.session]
             });
         }).catch((e) => {
+            console.log('/*************************************error*************************************/');
+            console.log(e);
             return null;
         });
         //console.log(`Session ${req.params.session} created!`);
         return client;
     } catch (error) {
+        console.log('/*************************************error2*************************************/');
+        console.log(error);
         //console.log(`Failed to create session ${req.params.session}: ${error}`);
     }
 }
@@ -1379,11 +1528,11 @@ async function listenMessages(client, req) {
     //await client.onAnyMessage(async (message) => {
     await client.onAnyMessage(async (message) => {
 
-        if (browserSession[req.params.session].pauseListen) return;
+        //if (browserSession[req.params.session].pauseListen) return;
 
         message.session = client.session;
 
-        var name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname);
+        var name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname); 
 
         var profilePicture = '';
 
@@ -1412,15 +1561,17 @@ async function listenMessages(client, req) {
             messageSender = name;
         }
 
+        //console.log('listen text api here', message);
+
         switch (message.type) {
             case 'text':
                 if (message.body) {
                     const filename = message.id.toString();
 
                     if (message.subtype == 'url') {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session });
+                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                     } else {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session });
+                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                     }
                 }
                 break;
@@ -1429,9 +1580,9 @@ async function listenMessages(client, req) {
                     const filename = message.id.toString();
 
                     if (message.subtype == 'url') {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session });
+                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                     } else {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session });
+                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                     }
                 }
                 break;
@@ -1442,7 +1593,7 @@ async function listenMessages(client, req) {
                 if (pttMedia) {
                     const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1451,10 +1602,16 @@ async function listenMessages(client, req) {
 
                 const imageMedia = await client.downloadMedia(message);
 
+                //client.decryptFile(message).then(
+                //    function (download) {
+                //        res.end(download);
+                //    }
+                //);
+
                 if (imageMedia) {
                     const filename = message.id.toString() + '.jpg';
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1466,7 +1623,7 @@ async function listenMessages(client, req) {
                 if (audioMedia) {
                     const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1478,7 +1635,7 @@ async function listenMessages(client, req) {
                 if (videoMedia) {
                     const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1493,7 +1650,7 @@ async function listenMessages(client, req) {
                         filename = message.caption
                     }
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`)), isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`)), isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1505,7 +1662,7 @@ async function listenMessages(client, req) {
                 if (stickerMedia) {
                     const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1517,7 +1674,7 @@ async function listenMessages(client, req) {
                 if (voiceMedia) {
                     const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, session: message.session });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                 } else {
                     console.log(`Error downloading media for message ${message.id}`);
                 }
@@ -1531,6 +1688,161 @@ async function listenMessages(client, req) {
     await client.onIncomingCall(async (call) => {
         callWebHook(client, req, 'incomingcall', call);
     });
+}
+
+async function onMessageCallWebHook(req, client, message) {
+
+    message.session = client.session;
+
+    var name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname);
+
+    var profilePicture = '';
+
+    var mobileNumber = '';
+
+    var messageSender = '';
+
+    var isMyContact = message.sender.isMyContact;
+
+    if (message.sender.profilePicThumbObj != null) {
+        profilePicture = message.sender.profilePicThumbObj.eurl;
+    }
+
+    if (message.fromMe == true) {
+        mobileNumber = message.to;
+        await client.getChatById(message.to)
+            .then((chat) => {
+                // Log the name of the chat
+                messageSender = chat.name;
+            })
+            .catch((error) => {
+                messageSender = name;
+            });
+    } else {
+        mobileNumber = message.from;
+        messageSender = name;
+    }
+
+    switch (message.type) {
+        case 'text':
+            if (message.body) {
+                const filename = message.id.toString();
+
+                if (message.subtype == 'url') {
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                } else {
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                }
+            }
+            break;
+        case 'chat':
+            if (message.body) {
+                const filename = message.id.toString();
+
+                if (message.subtype == 'url') {
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                } else {
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                }
+            }
+            break;
+        case 'ptt':
+
+            const pttMedia = await client.downloadMedia(message);
+
+            if (pttMedia) {
+                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'image':
+
+            const imageMedia = await client.downloadMedia(message);
+
+            //client.decryptFile(message).then(
+            //    function (download) {
+            //        res.end(download);
+            //    }
+            //);
+
+            if (imageMedia) {
+                const filename = message.id.toString() + '.jpg';
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'audio':
+
+            const audioMedia = await client.downloadMedia(message);
+
+            if (audioMedia) {
+                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'video':
+
+            const videoMedia = await client.downloadMedia(message);
+
+            if (videoMedia) {
+                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'document':
+
+            const docMedia = await client.downloadMedia(message);
+
+            if (docMedia) {
+                var filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+                if ((message.caption) != null && (message.caption != '')) {
+                    filename = message.caption
+                }
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`)), isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'sticker':
+
+            const stickerMedia = await client.downloadMedia(message);
+
+            if (stickerMedia) {
+                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        case 'voice':
+
+            const voiceMedia = await client.downloadMedia(message);
+
+            if (voiceMedia) {
+                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+
+                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+            } else {
+                console.log(`Error downloading media for message ${message.id}`);
+            }
+            break;
+        default:
+            console.log(`Received message of unknown type ${message.type}: ${message.body}`);
+            break;
+    }
 }
 
 async function listenAcks(client, req) {
@@ -1599,7 +1911,7 @@ async function getWhatsappInfo(client, req) {
     }
 }
 
-async function callChannelWebHook(client, req, event, data) {
+async function callChannelWebHook(client, req, event, data) {    
 
     const webhook = req.query.hook || false;
 
@@ -1610,7 +1922,7 @@ async function callChannelWebHook(client, req, event, data) {
                 getWhatsappInfo(client, req);
             } catch (e) { }
         }
-
+ 
         try {
             const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
             data = Object.assign({ event: event, session: req.params.session }, data);
@@ -1729,13 +2041,13 @@ async function getProfilePic(client, phoneNumber, limit = 10) {
 }
 
 async function KeywordReply(client, response) {
-
+   
     if (response.isGroupMsg == false && response.type == "template_button_reply") {
         var message = "";
-
+        
         switch (response.body) {
             case "-Pending Commission":
-                message = "Your pending case commission is RM 23,384.00";
+                message = "Your pending case commission is RM 23,384.00";                
                 break;
             case "-Gala Ranking":
                 message = "Your current ranking is No.12, Keep going!";
@@ -1752,7 +2064,7 @@ async function KeywordReply(client, response) {
                 break;
         }
 
-        if (message != "") {
+        if (message != "") {           
             if (client != undefined) {
                 console.log("status: " + client.getConnectionState());
                 if (await client.getConnectionState() == "CONNECTED") {
@@ -1762,9 +2074,119 @@ async function KeywordReply(client, response) {
                 }
             }
         }
-
+           
     }
 }
+
+//async function control_v1(client, action, control, offHook) {
+
+//    if (action == "checking") {
+
+//        if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
+//            const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+
+//            return res.json({
+//                message: browserSession[req.params.session]
+//            });
+//        }
+
+//        return res.json({
+//            message: 'Whatsapp browser not opened'
+//        });
+
+//    } else if (action == "control") {
+//        if (control) {
+//            if (control == "closeClient") {
+
+//                try {
+//                    if (client == undefined) {
+
+//                        console.log('Whatsapp client is not connected');
+
+//                        return res.json({
+//                            message: 'Client not open'
+//                        });
+//                    }
+
+//                    if (client) {
+
+//                        if (offHook) {
+//                            Object.assign(browserSession[req.params.session], {
+//                                offHook: offHook
+//                            });
+//                        }
+
+//                        await client.close();
+
+//                        browserSession[req.params.session] = undefined;
+//                        clientArray[req.params.session] = undefined;
+
+//                        return res.json({
+//                            message: 'WhatsApp client closed successfully'
+//                        });
+//                    }
+
+//                    return res.json({
+//                        message: 'Client not open'
+//                    });
+
+//                } catch (error) {
+//                    console.error('Error during closing WhatsApp client:', error);
+//                    return res.json({
+//                        message: 'Failed to close WhatsApp client'
+//                    });
+//                }
+
+//            } else if (control == "deleteBrowser") {
+//                try {
+//                    if (browserSession[res.params.session] == undefined) {
+
+//                        console.log('Whatsapp browser is not opened');
+
+//                        return res.json({
+//                            message: 'Client browser not opened'
+//                        });
+//                    }
+
+//                    browserSession[res.params.session] = undefined;
+
+//                    return res.json({
+//                        message: 'WhatsApp browser closed successfully'
+//                    });
+
+//                } catch (error) {
+//                    console.error('Error during closing WhatsApp browser:', error);
+//                    return res.json({
+//                        message: 'Failed to close WhatsApp browser'
+//                    });
+//                }
+//            } else if (control == "deleteClient") {
+//                try {
+//                    if (client == undefined) {
+
+//                        console.log('Whatsapp client is not connected');
+
+//                        return res.json({
+//                            message: 'Client is not exist'
+//                        });
+//                    }
+
+//                    clientArray[res.params.session] = undefined;
+
+//                    return res.json({
+//                        message: 'WhatsApp client deleted successfully'
+//                    });
+
+//                } catch (error) {
+//                    console.error('Error during delete WhatsApp client:', error);
+//                    return res.json({
+//                        message: 'Failed to delete WhatsApp client'
+//                    });
+//                }
+//            }
+//        }
+//    }
+//}
 
 app.use(apiRoot, router);
 
