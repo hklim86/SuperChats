@@ -10,13 +10,14 @@ const port = process.env.PORT || 3000;
 const apiRoot = "/api";
 const fs = require('fs');
 
-const {executablePath} = require('puppeteer');
+const { executablePath } = require('puppeteer');
 
 const app = express();
 var clientArray = [];
 
 var browserSession = [];
 var sessionToken = [];
+const timeoutLimit = 3000; // 60 seconds
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -26,21 +27,14 @@ app.options("*", cors());
 var replyMessage = [];
 
 const router = express.Router();
-
 router.get("/", (req, res) => {
     res.send(executablePath());
-    //res.send("OK");
 });
 
 router.get("/:session/testing", async function (req, res) {
     let client = clientArray[req.params.session];
     let hook = req.query.hook;
     let chatId = req.query.chatId;
-
-    //let result = await client.getAllChats('60175406366@c.us');
-
-    // client.getAllUnreadMessages().then(async (messages) => {
-    //client.getAllNewMessages().then(async (messages) => {
 
     const GetMessagesParam = {
         count: 30,
@@ -49,24 +43,6 @@ router.get("/:session/testing", async function (req, res) {
         id: null
     }
 
-    //client.getMessages('60175406366@c.us', GetMessagesParam).then(async (messages) => {
-
-    //    // Process the retrieved messages
-
-    //    let image_message = messages.find(obj => obj.type === 'image');
-
-    //    let media_message = await client.downloadFile(image_message);
-
-    //    console.log(media_message);
-
-    //    // Perform further operations on the messages as needed
-    //}).catch((error) => {
-    //    console.error('Error retrieving chat messages:', error);
-    //});
-
-    //await client.loadEarlierMessages('60175406366@c.us');
-
-    
     client.getAllChats(false).then(async (messages) => {
 
         console.log(messages);
@@ -116,7 +92,7 @@ router.put("/:session/check", async function (req, res) {
             return res.json({
                 message: 'Whatsapp browser not opened'
             });
-            
+
         } else if (action == "control") {
             if (control) {
                 if (control == "closeClient") {
@@ -137,7 +113,7 @@ router.put("/:session/check", async function (req, res) {
                                 Object.assign(browserSession[req.params.session], {
                                     offHook: offHook
                                 });
-                            }                          
+                            }
 
                             await client.close();
 
@@ -212,201 +188,49 @@ router.put("/:session/check", async function (req, res) {
     }
 });
 
-router.get("/:session/connect", async function (req, res) {
-    let client = clientArray[req.params.session];
-
-    //if (client != null) {
-
-    //    var clientConnection = await client.getConnectionState();
-
-    //    if (clientConnection == "CONNECTED")
-    //        return res.json({
-    //            message: browserSession[req.params.session]
-    //        });
-
-    //    /*if (here == "UNPAIRED")
-    //        delete clientArray['60107072567']
-    //        _.omit(clientArray, req.params.session);
-    //        return res.json({
-    //            message: "isNotLogged"
-    //        });*/
-    //    client.close();
-    //    clientArray[req.params.session] = undefined;
-    //}
-
-    const webhook_account = req.query.account || '';
-    const webhook_account_role = req.query.role || '';
-
-    if (browserSession[req.params.session] != null) {
-
-        if (clientArray[req.params.session] != null) {
-            return res.json({
-                message: {
-                    status: 'isLogged'
-                }
-            });
-        } else {
-
-            await browserSession[req.params.session].wppconnect;
-
-            return res.json({
-                message: browserSession[req.params.session]
-            });
-        }
-    } else {
-
-        browserSession[req.params.session] = {
-            status: "waitForLogin",
-            wppconnect: wppconnect.create({
-                //session
-                session: req.params.session, //Pass the name of the client you want to start the bot
-                //catchQR
-                catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
-                    //console.log('Number of attempts to read the qrcode: ', attempts);
-                    //console.log('Terminal qrcode: ', asciiQR);
-                    //console.log('base64 image string qrcode: ', base64Qrimg);
-                    //console.log('urlCode (data-ref): ', urlCode);
-                    browserSession[req.params.session] = { status: "waitForLogin", qrcode: base64Qrimg };
-                    callWebHook(client, req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode, account: webhook_account, accountRole: webhook_account_role });
-                    //console.log('base64 image string qrcode: ', base64Qrimg);
-                    return res.json({
-                        message: browserSession[req.params.session]
-                    });
-                },
-                statusFind: (statusSession, session) => {
-                    //console.log('Status Session: ', statusSession); //return isLogged || notLogged || browserClose || qrReadSuccess || qrReadFail || autocloseCalled || desconnectedMobile || deleteToken || chatsAvailable || deviceNotConnected || serverWssNotConnected || noOpenBrowser || initBrowser || openBrowser || connectBrowserWs || initWhatsapp || erroPageWhatsapp || successPageWhatsapp || waitForLogin || waitChat || successChat
-                    //Create session wss return "serverClose" case server for close
-                    //console.log('Session name: ', session);
-
-                    if (clientArray[req.params.session] != null && statusSession == "notLogged") {
-                        var client = clientArray[req.params.session];
-
-                        //delete clientArray[req.params.session];
-
-                        clientArray[session] = undefined;
-
-                        if (browserSession[req.params.session] != null) {
-                            browserSession[session] = { status: statusSession };
-                        }
-
-                        client.close();
-                    }
-
-                    try {
-                        if (statusSession === 'autocloseCalled' || statusSession === 'desconnectedMobile' || statusSession === 'browserClose') {
-                            var client = clientArray[req.params.session];
-                            var browser = browserSession[req.params.session];
-
-                            if (client != null) {
-                                clientArray[session] = undefined;
-                                client.close();
-                            }
-
-                            if (browser != null) {
-
-                                if (statusSession == 'desconnectedMobile') {
-                                    browserSession[session] = {
-                                        status: "notLogged"
-                                    }
-                                } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                                    browserSession[session] = undefined;
-                                }
-                            }
-                        }
-
-                        if (statusSession == 'isLogged') {
-                            if (clientArray[req.params.session] != null) {
-                                callWebHook(client, req, 'status-find', { status: statusSession });
-                            } else {
-                                callWebHook(client, req, 'status-find', { status: 'notLogged' });
-                            }
-                        }
-                        else if (statusSession == 'inChat') {
-
-                            if (client.waitForInChat()) {
-                                callWebHook(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                            }
-
-                            //if (clientArray[req.params.session] != null || browserSession[req.params.session] != null) {
-                            //    callWebHook(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                            //} else {
-                            //    callWebHook(client, req, 'status-find', { status: 'notLogged' });
-                            //}
-                        }
-                        else {
-                            callWebHook(client, req, 'status-find', { status: statusSession });
-                        }
-
-                    } catch (error) { }
-                },
-                headless: true, // Headless chrome
-                devtools: false, // Open devtools by default
-                useChrome: true, // If false will use Chromium instance
-                debug: false, // Opens a debug session
-                logQR: true, // Logs QR automatically in terminal
-                browserWS: '', // If u want to use browserWSEndpoint
-                browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-                puppeteerOptions: {
-                    userDataDir: './tokens/' + req.params.session, // or your custom directory
-                }, // Will be passed to puppeteer.launch
-                disableWelcome: true, // Option to disable the welcoming message which appears in the beginning
-                updatesLog: true, // Logs info updates automatically in terminal
-                autoClose: 60000, // Automatically closes the wppconnect only when scanning the QR code (default 60 seconds, if you want to turn it off, assign 0 or false)
-                tokenStore: 'file', // Define how work with tokens, that can be a custom interface
-                folderNameToken: './tokens', //folder name when saving tokens
-            }).then(async function (client) {
-                clientArray[req.params.session] = client;
-                browserSession[req.params.session] = { status: "isLogged" };
-
-                await listenMessages(client, req);
-                await listenAcks(client, req);
-
-                return res.json({
-                    message: browserSession[req.params.session]
-                });
-            }).catch((e) => {
-                return null;
-            })
-        };
-    }
-});
-
 router.get("/:session/connect_v1", async function (req, res) {
     let client = clientArray[req.params.session];
     let browser = browserSession[req.params.session];
-    //let isChannel = Boolean(req.query.isChannel) || false;
-    //let listenMessage = Boolean(req.query.listenMessage) || true;
 
     let isChannel = (req.query.isChannel) == 'true' ? true : false;
     let listenMessage = (req.query.listenMessage) == 'false' ? false : true;
+    let limit = 10;
 
+    var browserMessage;
 
-    if (browser && browser.wppconnect) {
-        const promiseStatus = typeof browser.wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+    try {
+        if (browser && browser.wppconnect) {
+            const promiseStatus = typeof browser.wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
 
-        if (promiseStatus === 'Pending') {
-            await browser.wppconnect;
-            await clientArray[req.params.session].isMainReady();
-            return res.json({
-                message: browserSession[req.params.session]
-            });
-        } else if (promiseStatus === 'fullfilled') {
-            return res.json({
-                message: browserSession[req.params.session]
-            });
+            if (promiseStatus === 'Pending') {
+                await browser.wppconnect;
+                browserMessage = browserSession[req.params.session];
+            } else if (promiseStatus === 'fullfilled') {
+                browserMessage = browserSession[req.params.session];
+            }
+            while (browserSession[req.params.session].wppconnect != "Completed" && limit > 0) {
+                limit--;
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+
+            browserMessage = browserSession[req.params.session];
+        } else {
+            browserSession[req.params.session] = {
+                status: "waitForLogin",
+                wppconnect: createSession(req, res, listenMessage, isChannel, (isChannel === true ? callChannelWebHook : callWebHook))
+            };
+
+            browserMessage = browserSession[req.params.session];
         }
-        //else {
-        //    let session = browser.wppconnect;
-        //    console.log(browserSession)
-        //    //session.destroy();
-        //    browserSession[req.params.session] = undefined;
-        //    console.log(browserSession)
-        //}
-    } else {
-        browserSession[req.params.session] = {
-            status: "waitForLogin",
-            wppconnect: createSession(req, res, listenMessage, (isChannel === true ? callChannelWebHook : callWebHook))
-        };
+
+        await browserSession[req.params.session].wppconnect;
+
+        return res.json({
+            message: browserMessage
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "An error occurred." });
     }
 });
 
@@ -434,11 +258,11 @@ router.get("/:session/disconnect", async function (req, res) {
         } finally {
             callWebHook(client, req, 'status-find', { status: 'browserClose' });
         }
-        
+
         return res.json({
             message: "logout"
         });
-        
+
     } else {
         return res.json({
             message: "notLogged"
@@ -482,7 +306,7 @@ router.get("/:session/closeClient", async function (req, res) {
             if (!offHook)
                 Object.assign(browserSession[req.params.session], {
                     offHook: offHook
-            });
+                });
         }
 
         return res.json({
@@ -524,14 +348,9 @@ router.get("/:session/closeSession", async function (req, res) {
     }
 
     if (client != null) {
-
         var clientConnection = await client.getConnectionState();
 
-
         if (clientConnection == "CONNECTED") {
-
-            //clientArray[req.params.session] = undefined;
-
             await client.logout();
 
             callWebHook(client, req, 'status-find', { status: 'logout' });
@@ -554,34 +373,12 @@ router.get("/:session/getGroupList", async function (req, res) {
 
             let response = await client.getAllGroups()
 
-            //clientArray[req.params.session] = undefined;
-
-            //await client.logout();
-
-            //callWebHook(client, req, 'status-find', { status: 'logout' });
-
-            //const filteredData = data.filter(item => {
-            //    const { isGroup, name } = item;
-            //    return isGroup && name.includes('(S1)');
-            //});
-
-            //for (const c of response) {
-            //    //const ids = c.groupMetadata.participants.map((p) => p.id._serialized);
-            //    const id = c.groupMetadata.id._serialized;
-            //    console.log(id);
-            //}
-
             for (const c of response) {
-                //const ids = c.groupMetadata.participants.map((p) => p.id._serialized);
                 const subject = c.groupMetadata.subject;
                 const id = c.groupMetadata.id._serialized;
 
                 console.log(subject);
-                //if (subject.includes('(s1)')) {
-                //    console.log(id);
-                //}
             }
-
 
             return res.json({
                 message: response['message']
@@ -591,9 +388,9 @@ router.get("/:session/getGroupList", async function (req, res) {
 });
 
 router.post("/:session/sendGroupMessage", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.textMessage) return res.status(400).json("textMessage requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.textMessage) return res.status(400).json("textMessage required.");
 
     let client = clientArray[req.params.session];
 
@@ -622,16 +419,11 @@ router.post("/:session/sendGroupMessage", async function (req, res) {
 router.post("/:session/checkReply", async function (req, res) {
     let client = clientArray[req.params.session];
 
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
 
     if (client != null) {
 
         if (await client.getConnectionState() == "CONNECTED") {
-
-            //let response = await client.checkNumberStatus(req.body.phoneNumber)
-
-            //let response = await client.getChatById(req.body.phoneNumber + '@c.us')
-
             const GetMessagesParam = {
                 count: 10,
                 direction: null,
@@ -651,26 +443,6 @@ router.post("/:session/checkReply", async function (req, res) {
             return res.json({
                 message: message
             });
-
-            //await client
-            //    .getAllMessagesInChat(req.body.phoneNumber + '@c.us', true, true)
-            //    .then((result) => {
-            //        return result; //return object success
-            //    })
-            //    .catch((e) => {
-            //        return res.status(400).json({ message: e }); //return object error
-            //    });
-
-            //response = await client.getAllGroups(true);
-
-            //response = await client.getChat(req.body.phoneNumber + '@c.us')
-
-            //clientArray[req.params.session] = undefined;
-
-            //await client.logout();
-
-            //callWebHook(client, req, 'status-find', { status: 'logout' });
-
         }
     }
     else {
@@ -679,9 +451,9 @@ router.post("/:session/checkReply", async function (req, res) {
 });
 
 router.post("/:session/sendMessage", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.textMessage) return res.status(400).json("textMessage requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.textMessage) return res.status(400).json("textMessage required.");
 
     let client = clientArray[req.params.session];
 
@@ -703,14 +475,13 @@ router.post("/:session/sendMessage", async function (req, res) {
     else {
         return res.status(400).json("notLogged.");
     }
-
 });
 
 router.post("/:session/sendImage", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.imageString) return res.status(400).json("image requred.");
-    if (!req.body.imageName) return res.status(400).json("image requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.imageString) return res.status(400).json("image required.");
+    if (!req.body.imageName) return res.status(400).json("image required.");
 
     let client = clientArray[req.params.session];
 
@@ -738,13 +509,12 @@ router.post("/:session/sendImage", async function (req, res) {
     else {
         return res.status(400).json("notLogged.");
     }
-
 });
 
 router.post("/:session/sendLink", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.linkString) return res.status(400).json("image requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.linkString) return res.status(400).json("image required.");
 
     let client = clientArray[req.params.session];
 
@@ -762,7 +532,6 @@ router.post("/:session/sendLink", async function (req, res) {
                 .catch((e) => {
                     return res.status(400).json({ message: e }); //return object error
                 });
-
         }
         else {
             return res.status(400).json("notLogged.");
@@ -771,13 +540,12 @@ router.post("/:session/sendLink", async function (req, res) {
     else {
         return res.status(400).json("notLogged.");
     }
-
 });
 
 router.post("/:session/sendFile", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.fileString) return res.status(400).json("file requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.fileString) return res.status(400).json("file required.");
 
     let client = clientArray[req.params.session];
 
@@ -805,128 +573,44 @@ router.post("/:session/sendFile", async function (req, res) {
     else {
         return res.status(400).json("notLogged.");
     }
-
 });
 
-router.post("/:session/sendButton", async function (req, res) {
+router.post("/:session/checkNumberStatus", async function (req, res) {
     if (!req.params.session) return res.status(400).json("Session required.");
     if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
-    if (!req.body.textMessage) return res.status(400).json("textMessage requred.");
-    if (!req.body.buttons) return res.status(400).json("button required.");
 
-    let client = clientArray[req.params.session];
+    try {
+        let client = clientArray[req.params.session];
 
-    if (req.body.reply) {
-        Array.prototype.push.apply(replyMessage, JSON.parse(req.body.reply));
-
-        replyMessage = replyMessage.filter((v, i, a) => a.findIndex(v2 => (v2.id === v.id)) === i)
-    }
-
-    if (client != undefined) {
-        if (await client.getConnectionState() == "CONNECTED") {
-            //client.sendText(req.body.phoneNumber + '@c.us', 'WPPConnect message with buttons', {
-            //    useTemplateButtons: true, // False for legacy
-            //    buttons: [
-            //        {
-            //            url: 'https://wppconnect.io/',
-            //            text: 'WPPConnect Site'
-            //        },
-            //        {
-            //            phoneNumber: '+55 11 22334455',
-            //            text: 'Call me'
-            //        },
-            //        {
-            //            id: 'your custom id 1',
-            //            text: 'Some text'
-            //        },
-            //        {
-            //            id: 'another id 2',
-            //            text: 'Another text'
-            //        }
-            //    ],
-            //    title: 'Title text', // Optional
-            //    footer: 'Footer text' // Optional
-            //});
-            client.sendText(
-                req.body.phoneNumber + '@c.us',
-                req.body.textMessage,
-                {
-                    useTemplateButtons: false, // False for legacy
-                    buttons: JSON.parse(req.body.buttons),
-                        /*[
-                        {
-                            url: 'https://wppconnect.io/',
-                            text: 'WPPConnect Site'
-                        },
-                        {
-                            phoneNumber: '+60107072567',
-                            text: 'Call me'
-                        },
-                        {
-                            text : 'Some text',
-                            id: 'id-123'
-                        },
-                        {
-                            id: 'another id 2',
-                            text: 'Another text',
-                            type: 'template'
-                        }
-                    ],*/
-                    //title: 'Title text' ,// Optional
-                    //footer: 'Footer text' // Optional
-                }
-            )
-            .then((result) => {
-                return res.json(result); //return object success
-            })
-            .catch((e) => {
-                return res.status(400).json({ message: e }); //return object error
-            });
+        if (client != undefined) {
+            if (await client.getConnectionState() != "CONNECTED") {
+                return res.status(400).json("notLogged.");
+            }
         }
         else {
             return res.status(400).json("notLogged.");
         }
-    }
-   else {
-        return res.status(400).json("notLogged.");
-    }
 
-});
-
-router.post("/:session/checkNumberStatus", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-
-    let client = clientArray[req.params.session];
-    console.log(client);
-    if (client != undefined) {
-        try {
-            if (await client.getConnectionState() == "CONNECTED") {
-                await client
-                    .checkNumberStatus(req.body.phoneNumber + '@c.us')
-                    .then((result) => {
-                        return res.json(result); //return object success
-                    })
-                    .catch((e) => {
-                        return res.status(400).json({ message: e }); //return object error
-                    });
-            }
-            else {
-                return res.status(400).json("notLogged.");
-            }
-        } catch (e) {
-            return res.status(400).json("notLogged.");
-        }
-
-    }
-    else {
+        await client
+            .checkNumberStatus(req.body.phoneNumber + '@c.us')
+            .then((result) => {
+                if (result.numberExists) {
+                    return res.json('Online');
+                } else {
+                    return res.json('Offline');
+                }
+            })
+            .catch((e) => {
+                return res.status(400).json({ message: e }); //return object error
+            });
+    } catch (error) {
         return res.status(400).json("notLogged.");
     }
 });
 
 router.post("/:session/checkProfilePicFromServer", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
 
     let client = clientArray[req.params.session];
     console.log(client);
@@ -956,8 +640,8 @@ router.post("/:session/checkProfilePicFromServer", async function (req, res) {
 });
 
 router.post("/:session/checkContact", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
 
     let client = clientArray[req.params.session];
     console.log(client);
@@ -986,9 +670,9 @@ router.post("/:session/checkContact", async function (req, res) {
     }
 });
 
-router.post("/:session/checkNumberProfile", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
+router.post("/:session/checkContact", async function (req, res) {
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
 
     let client = clientArray[req.params.session];
     console.log(client);
@@ -996,7 +680,7 @@ router.post("/:session/checkNumberProfile", async function (req, res) {
         try {
             if (await client.getConnectionState() == "CONNECTED") {
                 await client
-                    .getNumberProfile(req.body.phoneNumber + '@c.us')
+                    .getContact(req.body.phoneNumber + '@c.us')
                     .then((result) => {
                         return res.json(result); //return object success
                     })
@@ -1017,332 +701,262 @@ router.post("/:session/checkNumberProfile", async function (req, res) {
     }
 });
 
-router.post("/:session/sendButtonMessage", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.textMessage) return res.status(400).json("textMessage requred.");
+router.post("/:session/getChatById", async function (req, res) {
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
 
     let client = clientArray[req.params.session];
 
     if (client != undefined) {
-        if (await client.getConnectionState() == "CONNECTED") {
-            await client
-                .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage, {
-                    useTemplateButtons: true, // False for legacy
-                    buttons: [
-                        //{
-                        //    url: 'https://property213.io/',
-                        //    text: 'Property 213 Site'
-                        //},
-                        //{
-                        //    phoneNumber: '+60169935772',
-                        //    text: 'Call me'
-                        //},
-                        {
-                            id: 'Button1',
-                            text: '-Pending Commission'
-                        },
-                        {
-                            id: 'Button2',
-                            text: '-Gala Ranking'
-                        },
-                        {
-                            id: 'Button3',
-                            text: '-Unclaim Commission'
-                        } //max 3 button only
-                    ]
-                })
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
+        try {
+            if (await client.getConnectionState() == "CONNECTED") {
+                await client.getChatById(req.body.phoneNumber + '@c.us').then(async (result) => {
+                    return res.json(result);
+                }).catch((error) => {
+                    return res.status(400).json({ message: e });
                 });
-        }
-        else {
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        } catch (e) {
             return res.status(400).json("notLogged.");
         }
+
     }
     else {
         return res.status(400).json("notLogged.");
     }
-})
+});
 
-router.get("/:session/channelConnect", async function (req, res) {
+router.post("/:session/getAllMessagesInChat", async function (req, res) {
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+
     let client = clientArray[req.params.session];
 
-    if (browserSession[req.params.session] != null) {
+    const GetMessagesParam = {
+        count: 0,
+        direction: null,
+        fromMe: false,
+        id: null
+    }
 
-        if (clientArray[req.params.session] != null) {
-
-            return res.json({
-                message: {
-                    status: 'isLogged'
-                }
-            });
-
-            /*return res.json({
-                message: {
-                    status: 'isLogged',
-                    phone: await client.getWid(),
-                    picture: await client.getProfilePicFromServer(phoneNumber)
-                }
-            });*/
-
-        } else {
-
-            await browserSession[req.params.session].wppconnect;
-
-            return res.json({
-                message: browserSession[req.params.session]
-            });
+    if (client != undefined) {
+        try {
+            if (await client.getConnectionState() == "CONNECTED") {
+                await client.getMessages(req.body.phoneNumber + '@c.us', true, false).then(async (result) => {
+                    return res.json(result);
+                }).catch((error) => {
+                    return res.status(400).json({ message: e });
+                });
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        } catch (e) {
+            return res.status(400).json("notLogged.");
         }
-    } else {
 
-        browserSession[req.params.session] = {
-            status: "waitForLogin",
-            wppconnect: wppconnect.create({
-                //session
-                session: req.params.session, //Pass the name of the client you want to start the bot
-                //catchQR
-                catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
-                    browserSession[req.params.session] = { status: "waitForLogin", qrcode: base64Qrimg };
-                    callChannelWebHook(client, req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode });
+    }
+    else {
+        return res.status(400).json("notLogged.");
+    }
+});
 
-                    return res.json({
-                        message: browserSession[req.params.session]
+router.post("/:session/getStatus", async function (req, res) {
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+
+    let client = clientArray[req.params.session];
+    console.log(client);
+    if (client != undefined) {
+        try {
+            if (await client.getConnectionState() == "CONNECTED") {
+                await client
+                    .getStatus(req.body.phoneNumber + '@c.us')
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
                     });
-                },
-                statusFind: (statusSession, session) => {
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        } catch (e) {
+            return res.status(400).json("notLogged.");
+        }
 
-                    if (clientArray[req.params.session] != null && statusSession == "notLogged") {
-                        var client = clientArray[req.params.session];
-
-                        clientArray[session] = undefined;
-
-                        if (browserSession[req.params.session] != null) {
-                            browserSession[session] = { status: statusSession };
-                        }
-
-                        client.close();
-                    }
-
-                    try {
-                        if (statusSession === 'autocloseCalled' || statusSession === 'desconnectedMobile' || statusSession === 'browserClose') {
-                            var client = clientArray[req.params.session];
-                            var browser = browserSession[req.params.session];
-
-                            if (client != null) {
-                                clientArray[session] = undefined;
-                                client.close();
-                            }
-
-                            if (browser != null) {
-
-                                if (statusSession == 'desconnectedMobile') {
-                                    browserSession[session] = {
-                                        status: "notLogged"
-                                    }
-                                } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                                    browserSession[session] = undefined;
-                                }
-                            }
-                        }
-
-                        if (statusSession == 'isLogged') {
-                            if (clientArray[req.params.session] != null) {
-                                callChannelWebHook(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                            }
-                        } else if (statusSession == 'inChat') {
-                            if (clientArray[req.params.session].waitForInChat()) {
-                                callChannelWebHook(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                            }
-                        } else {
-                            callChannelWebHook(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                        }
-
-                    } catch (error) { }
-                },
-                headless: true, // Headless chrome
-                devtools: false, // Open devtools by default
-                useChrome: true, // If false will use Chromium instance
-                debug: false, // Opens a debug session
-                logQR: true, // Logs QR automatically in terminal
-                browserWS: '', // If u want to use browserWSEndpoint
-                browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-                puppeteerOptions: {
-                    userDataDir: './tokens/' + req.params.session, // or your custom directory
-                }, // Will be passed to puppeteer.launch
-                disableWelcome: true, // Option to disable the welcoming message which appears in the beginning
-                updatesLog: true, // Logs info updates automatically in terminal
-                autoClose: 60000, // Automatically closes the wppconnect only when scanning the QR code (default 60 seconds, if you want to turn it off, assign 0 or false)
-                tokenStore: 'file', // Define how work with tokens, that can be a custom interface
-                folderNameToken: './tokens', //folder name when saving tokens
-            }).then(async function (client) {
-                clientArray[req.params.session] = client;
-                browserSession[req.params.session] = { status: "isLogged" };
-
-                await listenMessages(client, req);
-                //await listenAcks(client, req);
-
-                callChannelWebHook(client, req, 'status-find', { status: 'isLogged' });
-
-                return res.json({
-                    message: browserSession[req.params.session]
-                });             
-
-            }).catch((e) => {
-                return null;
-            })
-        };
+    }
+    else {
+        return res.status(400).json("notLogged.");
     }
 });
 
 router.post("/:session/sendWhatsappMessage", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session requred.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber requred.");
-    if (!req.body.messageType) return res.status(400).json("messageType requred.");
+    if (!req.params.session) return res.status(400).json("Session required.");
+    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
+    if (!req.body.messageType) return res.status(400).json("messageType required.");
 
     var messageType = req.body.messageType;
     var messageSalesGpt = req.body.salesGpt;
 
-    let client = clientArray[req.params.session];
+    try {
+        let client = clientArray[req.params.session];
 
-    //if (req.body.salesGpt == "true") {
-    //    Object.assign(browserSession[req.params.session], {
-    //        pauseListen: true
-    //    }); 
-    //}       
+        var chatExist = false;
 
-    if (client != undefined) {
-        if (await client.getConnectionState() != "CONNECTED") {
+        if (client != undefined) {
+            if (await client.getConnectionState() != "CONNECTED") {
+                return res.status(400).json("notLogged.");
+            }
+        }
+        else {
             return res.status(400).json("notLogged.");
         }
-    }
-    else {
+
+        await client
+            .checkNumberStatus(req.body.phoneNumber + '@c.us')
+            .then((result) => {
+                if (result.numberExists) {
+                    chatExist = true;
+                } else {
+                    chatExist = false;
+                }
+            })
+            .catch((e) => {
+                chatExist = false;
+            });
+
+        if (chatExist == false) {
+            return res.status(400).json('chatNotExists');
+        }
+
+        await client.startTyping(req.body.phoneNumber + '@c.us', 2000);
+
+        switch (messageType) {
+            case 'text':
+                if (!req.body.textMessage) {
+                    return res.status(400).json("textMessage required.");
+                    break;
+                }
+                await client
+                    .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
+                    .then((result) => {
+                        if (messageSalesGpt == 'true') {
+                            callWebHook(client, req, 'labelmessage', { messageId: result.id });
+                        }
+
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
+            case 'image':
+                if (!req.body.imageString) {
+                    return res.status(400).json("image required.");
+                    break;
+                } else if (!req.body.imageName) {
+                    return res.status(400).json("imageName required.");
+                    break;
+                }
+                await client
+                    .sendImage(
+                        req.body.phoneNumber + '@c.us',
+                        req.body.imageString,
+                        req.body.imageName,
+                        req.body.imageCaption
+                    )
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
+            case 'link':
+                if (!req.body.linkString) {
+                    return res.status(400).json("link required.");
+                    break;
+                }
+                await client
+                    .sendLinkPreview(
+                        req.body.phoneNumber + '@c.us',
+                        req.body.linkString,
+                        req.body.linkTitle
+                    )
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
+            case 'file':
+                if (!req.body.fileString) {
+                    return res.status(400).json("file required.");
+                    break;
+                }
+                await client
+                    .sendFile(
+                        req.body.phoneNumber + '@c.us',
+                        req.body.fileString,
+                        req.body.fileName,
+                        req.body.fileCaption
+                    )
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
+            case 'button':
+                if (!req.body.textMessage) {
+                    return res.status(400).json("textMessage required.");
+                    break;
+                } else if (!req.body.buttons) {
+                    return res.status(400).json("button required.");
+                    break;
+                }
+
+                await client
+                    .sendText(
+                        req.body.phoneNumber + '@c.us',
+                        req.body.textMessage,
+                        {
+                            useTemplateButtons: true, // False for legacy
+                            buttons: JSON.parse(req.body.buttons)
+                        }
+                    )
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
+
+            default:
+                console.log(`Received message of unknown type ${message.type}: ${message.body}`);
+                break;
+
+        }
+    } catch (error) {
         return res.status(400).json("notLogged.");
-    }
-
-    switch (messageType) {
-        case 'text':
-            if (!req.body.textMessage) {
-                return res.status(400).json("textMessage requred.");
-                break;
-            }
-            await client
-                .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
-                .then((result) => {
-                    //console.log('send text api here', result);
-                    //onMessageCallWebHook(req, client, result);
-                    if (messageSalesGpt == 'true') {
-                        callWebHook(client, req, 'labelmessage', { messageId: result.id });
-                    }                   
-
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });
-            delete browserSession[req.params.session].pauseListen;
-            break;
-        case 'image':
-            if (!req.body.imageString) {
-                return res.status(400).json("image requred.");
-                break;
-            } else if (!req.body.imageName) {
-                return res.status(400).json("imageName requred.");
-                break;
-            }
-            await client
-                .sendImage(
-                    req.body.phoneNumber + '@c.us',
-                    req.body.imageString,
-                    req.body.imageName,
-                    req.body.imageCaption
-                )
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });
-            delete browserSession[req.params.session].pauseListen;
-            break;
-        case 'link':
-            if (!req.body.linkString) {
-                return res.status(400).json("link requred.");
-                break;
-            }
-            await client
-                .sendLinkPreview(
-                    req.body.phoneNumber + '@c.us',
-                    req.body.linkString,
-                    req.body.linkTitle
-                )
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });
-            delete browserSession[req.params.session].pauseListen;
-            break;
-        case 'file':
-            if (!req.body.fileString) {
-                return res.status(400).json("file requred.");
-                break;
-            }
-            await client
-                .sendFile(
-                    req.body.phoneNumber + '@c.us',
-                    req.body.fileString,
-                    req.body.fileName,
-                    req.body.fileCaption
-                )
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });
-            delete browserSession[req.params.session].pauseListen;
-            break;
-        case 'button':
-            if (!req.body.textMessage) {
-                return res.status(400).json("textMessage requred.");
-                break;
-            } else if (!req.body.buttons) {
-                return res.status(400).json("button required.");
-                break;
-            }
-
-            if (req.body.reply) {
-                Array.prototype.push.apply(replyMessage, JSON.parse(req.body.reply));
-
-                replyMessage = replyMessage.filter((v, i, a) => a.findIndex(v2 => (v2.id === v.id)) === i)
-            }
-            await client
-                .sendText(
-                    req.body.phoneNumber + '@c.us',
-                    req.body.textMessage,
-                    {
-                        useTemplateButtons: true, // False for legacy
-                        buttons: JSON.parse(req.body.buttons)
-                    }
-                )
-                .then((result) => {
-                    return res.json(result); //return object success
-                })
-                .catch((e) => {
-                    return res.status(400).json({ message: e }); //return object error
-                });
-            delete browserSession[req.params.session].pauseListen;
-            break;
-
-        default:
-            console.log(`Received message of unknown type ${message.type}: ${message.body}`);
-            break;
-
     }
 });
 
@@ -1365,10 +979,9 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
     }
 });
 
-async function createSession(req, res, listenMessage, sendWebhookResult = callWebHook) {
+async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
 
     let client = clientArray[req.params.session];
-    var browser = browserSession[req.params.session];
 
     try {
         return await wppconnect.create({
@@ -1386,58 +999,31 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
                     message: browserSession[req.params.session]
                 });
             },
-            statusFind: async function(statusSession, session) {
+            statusFind: async function (statusSession, session) {
+                console.log("**************************************");
+                console.log(statusSession);
+                console.log("**************************************");
                 //console.log(`Whatsapp browser session ${session} checking: ${statusSession}`);
                 if (statusSession === 'desconnectedMobile') {
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
-                    //if (clientArray[session]) {
-                    //    await clientArray[session].close();
-                    //    browserSession[session] = undefined;
-                    //}
-                    //console.log('Whatsapp desconnectedMobile');
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
                     if (browserSession[session]) {
-                        if (('offHook' in browserSession[session]) && browserSession[session].offHook === false) {
+                        if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
                             sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
                         }
-                        //if (!('offHook' in browserSession[session])) {
-                        //    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                        //} else {
-                        //    if (browserSession[session].offHook === 'false') {
-                        //        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                        //    }
-                        //} 
                         browserSession[session] = undefined;
-                    }                           
+                    }
                     //console.log('Whatsapp browserClose');
                 } else if (statusSession == 'isLogged') {
-                    //if (client != null) {
-                    //    sendWebhookResult(client, req, 'status-find', { status: statusSession });
-                    //} else {
-                    //    sendWebhookResult(client, req, 'status-find', { status: 'notLogged' });
-                    //}
-                    //console.log('Whatsapp isLogged');
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
                 } else if (statusSession === 'notLogged') {
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
                 } else if (statusSession === 'inChat') {
-                    //console.log(`Waiting session ${session} to load complete`);
-                    //if (clientArray[session].waitForInChat()) {
-                    //    console.log(`Session ${session} load complete`);
-                    //    sendWebhookResult(client, req, 'status-find', { status: 'inChat' });
-                    //}
-
-                    //await waitForBrowser(clientArray[session]);
-
-                    await clientArray[req.params.session].isMainReady();
-
+                    browserSession[req.params.session].wppconnect = "Completed";
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'inChat' });
-                    //console.log('Whatsapp inChat');
                 } else {
                     sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                    //console.log(`Whatsapp ${statusSession}`);
                 }
-                //isLogged || notLogged || browserClose || qrReadSuccess || qrReadFail || autocloseCalled || desconnectedMobile || deleteToken
             },
             headless: true, // Headless chrome
             devtools: false, // Open devtools by default
@@ -1445,8 +1031,7 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
             debug: false, // Opens a debug session
             logQR: true, // Logs QR automatically in terminal
             browserWS: '', // If u want to use browserWSEndpoint
-            browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance
-            //browserArgs: [''],
+            browserArgs: ['--js-flags="--max_old_space_size=80" --disable-web-security', '--no-sandbox', '--disable-web-security', '--aggressive-cache-discard', '--disable-cache', '--disable-application-cache', '--disable-offline-load-stale-cache', '--disk-cache-size=0', '--disable-background-networking', '--disable-default-apps', '--disable-extensions', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--metrics-recording-only', '--mute-audio', '--no-first-run', '--safebrowsing-disable-auto-update', '--ignore-certificate-errors', '--ignore-ssl-errors', '--ignore-certificate-errors-spki-list'], // Parameters to be added into the chrome browser instance 
             puppeteerOptions: {
                 userDataDir: './tokens/' + req.params.session, // or your custom directory
             }, // Will be passed to puppeteer.launch
@@ -1456,7 +1041,6 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
             tokenStore: 'file', // Define how work with tokens, that can be a custom interface
             folderNameToken: './tokens', //folder name when saving tokens
         }).then(async function (client) {
-            clientArray[req.params.session] = client;
             browserSession[req.params.session] = {
                 status: 'isLogged',
                 wppconnect: 'fullfilled'
@@ -1464,397 +1048,294 @@ async function createSession(req, res, listenMessage, sendWebhookResult = callWe
             if (listenMessage === true) {
                 await listenMessages(client, req);
                 await listenAcks(client, req);
-            }            
+                await onRevokedMessage(client, req);
+            }
 
-            await client.isMainReady();
+            if (isChannel === true) {
+                client.startPhoneWatchdog();
+            }
 
-            //await clientArray[req.params.session].getAllUnreadMessages().then(async (messages) => {
-            //    // Process the retrieved messages
+            clientArray[req.params.session] = client;
 
-            //    console.log(messages);
-
-            //    // Perform further operations on the messages as needed
-            //}).catch((error) => {
-            //    console.error('Error retrieving chat messages:', error);
-            //});
-
-            return res.json({
-                message: browserSession[req.params.session]
-            });
+            return client;
         }).catch((e) => {
             console.log('/*************************************error*************************************/');
             console.log(e);
             return null;
         });
-        //console.log(`Session ${req.params.session} created!`);
         return client;
     } catch (error) {
         console.log('/*************************************error2*************************************/');
         console.log(error);
-        //console.log(`Failed to create session ${req.params.session}: ${error}`);
     }
 }
 
 async function listenMessages(client, req) {
-    //await client.onMessage(async (message) => {
-    //    //eventEmitter.emit(`mensagem-${client.session}`, client, message);
-    //    callWebHook(client, req, 'onmessage', message);
-    //    KeywordReply(client, message);
-    //    if (message.type === 'location')
-    //        client.onLiveLocation(message.sender.id, (location) => {
-    //            callWebHook(client, req, 'location', location);
-    //        });
-    //    if (message.type === 'template_button_reply')
-    //        if (client != undefined) {
+    try {
+        await client.onAnyMessage(async (message) => {
+            message.session = client.session;
 
-    //            //replyMessage = [
-    //            //    {
-    //            //        received: 'ff', reply: 'ff'
-    //            //    },
-    //            //    {
-    //            //        received: 'dd', reply: 'dd'
-    //            //    }
-    //            //]
+            var name = '';
+            var profilePicture = '';
+            var mobileNumber = '';
+            var messageSender = '';
+            var isMyContact = false;
+            var filename = '';
+            var isCaptionByUser = false;
 
-    //            replyMessage.find((msg) => {
-    //                if (msg.id.toString() === message.selectedId) {
-    //                    client
-    //                        .sendText(message.from, msg.reply)
-    //                }
-    //            });
-    //        }
-    //});
+            try {
+                name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname);
+            } catch (e) {
+                name = '';
+            }
 
-    //await client.onAnyMessage(async (message) => {
-    await client.onAnyMessage(async (message) => {
-
-        //if (browserSession[req.params.session].pauseListen) return;
-
-        message.session = client.session;
-
-        var name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname); 
-
-        var profilePicture = '';
-
-        var mobileNumber = '';
-
-        var messageSender = '';
-
-        var isMyContact = message.sender.isMyContact;
-
-        if (message.sender.profilePicThumbObj != null) {
-            profilePicture = message.sender.profilePicThumbObj.eurl;
-        }
-
-        if (message.fromMe == true) {
-            mobileNumber = message.to;
-            await client.getChatById(message.to)
-                .then((chat) => {
-                    // Log the name of the chat
-                    messageSender = chat.name;
-                })
-                .catch((error) => {
-                    messageSender = name;
-                });
-        } else {
-            mobileNumber = message.from;
-            messageSender = name;
-        }
-
-        //console.log('listen text api here', message);
-
-        switch (message.type) {
-            case 'text':
-                if (message.body) {
-                    const filename = message.id.toString();
-
-                    if (message.subtype == 'url') {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                    } else {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                    }
+            try {
+                if (message.sender.profilePicThumbObj != null) {
+                    profilePicture = message.sender.profilePicThumbObj.eurl;
                 }
-                break;
-            case 'chat':
-                if (message.body) {
-                    const filename = message.id.toString();
+            } catch (e) {
+                profilePicture = '';
+            }
 
-                    if (message.subtype == 'url') {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                    } else {
-                        callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                    }
+            try {
+                if (message.fromMe == true) {
+                    mobileNumber = message.to;
+                } else {
+                    mobileNumber = message.from;
                 }
-                break;
-            case 'ptt':
+            } catch (e) {
+                mobileNumber = '';
+            }
 
-                const pttMedia = await client.downloadMedia(message);
+            try {
+                await client.getChatById(message.to)
+                    .then((chat) => {
+                        messageSender = chat.name;
+                    })
+                    .catch((error) => {
+                        messageSender = name;
+                    });
+            } catch (e) {
+                messageSender = name;
+            }
 
-                if (pttMedia) {
-                    const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+            try {
+                isMyContact = message.sender.isMyContact;
+            } catch (e) {
+                isMyContact = false;
+            }
+
+            try {
+                filename = message.id.toString();
+            } catch (e) {
+                filename = '';
+            }
+
+            try {
+                isCaptionByUser = message.isCaptionByUser;
+            } catch (e) {
+                isCaptionByUser = false;
+            }
+
+            switch (message.type) {
+                case 'text':
+                    if (message.body) {
+                        try {
+                            if (message.subtype == 'url') {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            } else {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            }
+                        } catch (e) {
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                        }
+                    }
+
+                    break;
+                case 'chat':
+                    if (message.body) {
+                        try {
+                            if (message.subtype == 'url') {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            } else {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            }
+                        } catch (e) {
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                        }
+                    }
+                    break;
+                case 'ptt':
+                    var pttMedia = '';
+
+                    try {
+                        pttMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        pttMedia = '';
+                    }
+
+                    try {
+                        filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+                    } catch (e) { }
 
                     callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'image':
 
-                const imageMedia = await client.downloadMedia(message);
+                    break;
+                case 'image':
+                    var imageMedia = '';
 
-                //client.decryptFile(message).then(
-                //    function (download) {
-                //        res.end(download);
-                //    }
-                //);
-
-                if (imageMedia) {
-                    const filename = message.id.toString() + '.jpg';
-
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'audio':
-
-                const audioMedia = await client.downloadMedia(message);
-
-                if (audioMedia) {
-                    const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'video':
-
-                const videoMedia = await client.downloadMedia(message);
-
-                if (videoMedia) {
-                    const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'document':
-
-                const docMedia = await client.downloadMedia(message);
-
-                if (docMedia) {
-                    var filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-                    if ((message.caption) != null && (message.caption != '')) {
-                        filename = message.caption
+                    try {
+                        imageMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        imageMedia = '';
                     }
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`)), isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'sticker':
+                    try {
+                        filename = `${message.t}.${message.mimetype.split('/')[1]}`;
+                    } catch (e) {
+                        filename = filename + '.jpg';
+                    }
 
-                const stickerMedia = await client.downloadMedia(message);
+                    try {
+                        isCaptionByUser = (message.caption == undefined ? false : true);
+                    } catch (e) { }
 
-                if (stickerMedia) {
-                    const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+
+                    break;
+                case 'audio':
+                    var audioMedia = '';
+
+                    try {
+                        audioMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        audioMedia = '';
+                    }
+
+                    try {
+                        filename = `${message.t}.${message.mimetype.split('/')[1]}`;
+                    } catch (e) { }
+
+                    try {
+                        isCaptionByUser = (message.caption == undefined ? false : true);
+                    } catch (e) { }
+
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+
+                    break;
+                case 'video':
+                    var videoMedia = '';
+
+                    try {
+                        videoMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        videoMedia = '';
+                    }
+
+                    try {
+                        filename = `${message.t}.${message.mimetype.split('/')[1]}`;
+                    } catch (e) { }
+
+                    try {
+                        isCaptionByUser = (message.caption == undefined ? false : true);
+                    } catch (e) { }
+
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+
+                    break;
+                case 'document':
+                    var docMedia = '';
+
+                    try {
+                        docMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        docMedia = '';
+                    }
+
+                    try {
+                        dFilename = ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`));
+                    } catch (e) { }
+
+                    try {
+                        isCaptionByUser = (message.caption == undefined ? false : true);
+                    } catch (e) { }
+
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+
+                    break;
+                case 'sticker':
+                    var stickerMedia = await client.downloadMedia(message);
+
+                    try {
+                        stickerMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        stickerMedia = '';
+                    }
+
+                    try {
+                        filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+                    } catch { }
 
                     callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            case 'voice':
 
-                const voiceMedia = await client.downloadMedia(message);
+                    break;
+                case 'voice':
+                    var voiceMedia = await client.downloadMedia(message);
 
-                if (voiceMedia) {
-                    const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
+                    try {
+                        voiceMedia = await client.downloadMedia(message);
+                    } catch (e) {
+                        voiceMedia = '';
+                    }
 
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    console.log(`Error downloading media for message ${message.id}`);
-                }
-                break;
-            default:
-                console.log(`Received message of unknown type ${message.type}: ${message.body}`);
-                break;
-        }
-    });
+                    try {
+                        filename = `${message.t}.${message.mimetype.split('/')[1]}`;
+                    } catch (e) { }
 
-    await client.onIncomingCall(async (call) => {
-        callWebHook(client, req, 'incomingcall', call);
-    });
-}
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
-async function onMessageCallWebHook(req, client, message) {
-
-    message.session = client.session;
-
-    var name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname);
-
-    var profilePicture = '';
-
-    var mobileNumber = '';
-
-    var messageSender = '';
-
-    var isMyContact = message.sender.isMyContact;
-
-    if (message.sender.profilePicThumbObj != null) {
-        profilePicture = message.sender.profilePicThumbObj.eurl;
-    }
-
-    if (message.fromMe == true) {
-        mobileNumber = message.to;
-        await client.getChatById(message.to)
-            .then((chat) => {
-                // Log the name of the chat
-                messageSender = chat.name;
-            })
-            .catch((error) => {
-                messageSender = name;
-            });
-    } else {
-        mobileNumber = message.from;
-        messageSender = name;
-    }
-
-    switch (message.type) {
-        case 'text':
-            if (message.body) {
-                const filename = message.id.toString();
-
-                if (message.subtype == 'url') {
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                }
+                    break;
+                default:
+                    console.log(`Received message of unknown type ${message.type}: ${message.body}`);
+                    break;
             }
-            break;
-        case 'chat':
-            if (message.body) {
-                const filename = message.id.toString();
+        });
+    } catch (e) {
 
-                if (message.subtype == 'url') {
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                } else {
-                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-                }
-            }
-            break;
-        case 'ptt':
-
-            const pttMedia = await client.downloadMedia(message);
-
-            if (pttMedia) {
-                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'image':
-
-            const imageMedia = await client.downloadMedia(message);
-
-            //client.decryptFile(message).then(
-            //    function (download) {
-            //        res.end(download);
-            //    }
-            //);
-
-            if (imageMedia) {
-                const filename = message.id.toString() + '.jpg';
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'audio':
-
-            const audioMedia = await client.downloadMedia(message);
-
-            if (audioMedia) {
-                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'video':
-
-            const videoMedia = await client.downloadMedia(message);
-
-            if (videoMedia) {
-                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, isCaptionByUser: (message.caption == undefined ? false : true), caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'document':
-
-            const docMedia = await client.downloadMedia(message);
-
-            if (docMedia) {
-                var filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-                if ((message.caption) != null && (message.caption != '')) {
-                    filename = message.caption
-                }
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: ((message.filename != null && message.filename != '') ? (message.filename) : (`${message.t}.${message.mimetype.split('/')[1]}`)), isCaptionByUser: message.isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'sticker':
-
-            const stickerMedia = await client.downloadMedia(message);
-
-            if (stickerMedia) {
-                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        case 'voice':
-
-            const voiceMedia = await client.downloadMedia(message);
-
-            if (voiceMedia) {
-                const filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
-
-                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: `${message.t}.${message.mimetype.split('/')[1]}`, session: message.session, timeStamp: message.timestamp, messageId: message.id });
-            } else {
-                console.log(`Error downloading media for message ${message.id}`);
-            }
-            break;
-        default:
-            console.log(`Received message of unknown type ${message.type}: ${message.body}`);
-            break;
     }
 }
 
 async function listenAcks(client, req) {
-    await client.onAck(async (ack) => {
-        callWebHook(client, req, 'onack', ack);
-    });
+    try {
+        await client.onAck(async (result) => {
+            callWebHook(client, req, 'onack', result);
+        });
+    } catch (e) {
+
+    }
 }
 
 async function onPresenceChanged(client, req) {
-    await client.onPresenceChanged(async (presenceChangedEvent) => {
-        callWebHook(client, req, 'onpresencechanged', presenceChangedEvent);
-    });
+    try {
+        await client.onPresenceChanged(async (result) => {
+            callWebHook(client, req, 'onpresencechanged', result);
+        });
+    } catch (e) {
+
+    }
+}
+
+async function onRevokedMessage(client, req) {
+    try {
+        await client.onRevokedMessage(async (result) => {
+
+            result.session = client.session;
+
+            callWebHook(client, req, 'onrevokedmessage', result);
+        });
+    } catch (e) {
+
+    }
 }
 
 async function waitForBrowser(client) {
@@ -1873,45 +1354,47 @@ async function waitForBrowser(client) {
 }
 
 async function getWhatsappInfo(client, req) {
-
     const webhook = req.query.hook || false;
 
-    if (webhook && client != null) {
+    try {
+        if (webhook) {
+            client = clientArray[req.params.session];
 
-        await waitForBrowser(clientArray[req.params.session]);
+            if (client != null) {
+                var phone = await client.getWid();
+                var picture = await getProfilePic(client, phone);
+                var profile = await getProfileDetails(client, phone);
 
-        client = clientArray[req.params.session];
+                var event = 'whatsapp-detail';
+                var data = {
+                    status: 'update',
+                    mobileNumber: phone,
+                    profilePicture: picture,
+                    userName: profile,
+                    whatsappChannelUId: req.params.session
+                }
 
-        var phone = await client.getWid();
-        var picture = await getProfilePic(client, phone);
-        var profile = await getProfileDetails(client, phone);
+                if (phone && phone.trim() !== '') {
 
-        var event = 'whatsapp-detail';
-        var data = {
-            status: 'update',
-            mobileNumber: phone,
-            profilePicture: picture,
-            userName: profile,
-            whatsappChannelUId: req.params.session
+                    const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
+                    data = Object.assign({ event: event, session: req.params.session }, data);
+
+                    api.post((webhook), data).catch((e) => {
+                        console.log('Error calling Webhook.', e);
+                    });
+
+                    return;
+                }
+
+                return getWhatsappInfo(client, req);
+            }
         }
+    } catch (e) {
 
-        if (phone && phone.trim() !== '') {
-
-            const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
-            data = Object.assign({ event: event, session: req.params.session }, data);
-
-            api.post((webhook), data).catch((e) => {
-                console.log('Error calling Webhook.', e);
-            });
-
-            return;
-        }
-
-        return getWhatsappInfo(client, req);
     }
 }
 
-async function callChannelWebHook(client, req, event, data) {    
+async function callChannelWebHook(client, req, event, data) {
 
     const webhook = req.query.hook || false;
 
@@ -1922,7 +1405,7 @@ async function callChannelWebHook(client, req, event, data) {
                 getWhatsappInfo(client, req);
             } catch (e) { }
         }
- 
+
         try {
             const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
             data = Object.assign({ event: event, session: req.params.session }, data);
@@ -1933,64 +1416,14 @@ async function callChannelWebHook(client, req, event, data) {
         } catch (e) {
             console.log(e);
         }
-
-        //if (data['status'] == 'inChat') {
-
-        //    if (client != null) {
-        //        try {
-
-        //            if (await client.getConnectionState() == "CONNECTED") {
-
-        //                await waitForBrowser(client);
-
-        //                var phone = await client.getWid();
-        //                var picture = await getProfilePic(client, phone);
-        //                var profile = await getProfileDetails(client, phone);
-
-        //                data = {
-        //                    status: 'inChat',
-        //                    mobileNumber: phone,
-        //                    profilePicture: picture,
-        //                    userName: profile,
-        //                    whatsappChannelUId: req.params.session
-        //                }
-        //            }
-
-        //            const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
-        //            data = Object.assign({ event: event, session: req.params.session }, data);
-
-        //            api.post((webhook), data).catch((e) => {
-        //                console.log('Error calling Webhook.', e);
-        //            });
-        //        } catch (e) {
-        //            console.log(e);
-        //        }
-        //    }
-
-        //} else {
-        //    try {
-        //        const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
-        //        data = Object.assign({ event: event, session: req.params.session }, data);
-
-        //        api.post((webhook), data).catch((e) => {
-        //            console.log('Error calling Webhook.', e);
-        //        });
-        //    } catch (e) {
-        //        console.log(e);
-        //    }
-        //}
     }
 }
 
 async function callWebHook(client, req, event, data) {
-    //const webhook = req.body.webhook || false
     const webhook = req.query.hook || false;
-
-    //console.log(req.params.session, data);
 
     if (webhook) {
         try {
-            const chatId = data.from || data.chatId || (data.chatId ? data.chatId._serialized : null);
             data = Object.assign({ event: event, session: req.params.session }, data);
 
             api.post((webhook), data).catch((e) => {
@@ -2041,13 +1474,13 @@ async function getProfilePic(client, phoneNumber, limit = 10) {
 }
 
 async function KeywordReply(client, response) {
-   
+
     if (response.isGroupMsg == false && response.type == "template_button_reply") {
         var message = "";
-        
+
         switch (response.body) {
             case "-Pending Commission":
-                message = "Your pending case commission is RM 23,384.00";                
+                message = "Your pending case commission is RM 23,384.00";
                 break;
             case "-Gala Ranking":
                 message = "Your current ranking is No.12, Keep going!";
@@ -2064,7 +1497,7 @@ async function KeywordReply(client, response) {
                 break;
         }
 
-        if (message != "") {           
+        if (message != "") {
             if (client != undefined) {
                 console.log("status: " + client.getConnectionState());
                 if (await client.getConnectionState() == "CONNECTED") {
@@ -2074,119 +1507,9 @@ async function KeywordReply(client, response) {
                 }
             }
         }
-           
+
     }
 }
-
-//async function control_v1(client, action, control, offHook) {
-
-//    if (action == "checking") {
-
-//        if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
-//            const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
-
-//            return res.json({
-//                message: browserSession[req.params.session]
-//            });
-//        }
-
-//        return res.json({
-//            message: 'Whatsapp browser not opened'
-//        });
-
-//    } else if (action == "control") {
-//        if (control) {
-//            if (control == "closeClient") {
-
-//                try {
-//                    if (client == undefined) {
-
-//                        console.log('Whatsapp client is not connected');
-
-//                        return res.json({
-//                            message: 'Client not open'
-//                        });
-//                    }
-
-//                    if (client) {
-
-//                        if (offHook) {
-//                            Object.assign(browserSession[req.params.session], {
-//                                offHook: offHook
-//                            });
-//                        }
-
-//                        await client.close();
-
-//                        browserSession[req.params.session] = undefined;
-//                        clientArray[req.params.session] = undefined;
-
-//                        return res.json({
-//                            message: 'WhatsApp client closed successfully'
-//                        });
-//                    }
-
-//                    return res.json({
-//                        message: 'Client not open'
-//                    });
-
-//                } catch (error) {
-//                    console.error('Error during closing WhatsApp client:', error);
-//                    return res.json({
-//                        message: 'Failed to close WhatsApp client'
-//                    });
-//                }
-
-//            } else if (control == "deleteBrowser") {
-//                try {
-//                    if (browserSession[res.params.session] == undefined) {
-
-//                        console.log('Whatsapp browser is not opened');
-
-//                        return res.json({
-//                            message: 'Client browser not opened'
-//                        });
-//                    }
-
-//                    browserSession[res.params.session] = undefined;
-
-//                    return res.json({
-//                        message: 'WhatsApp browser closed successfully'
-//                    });
-
-//                } catch (error) {
-//                    console.error('Error during closing WhatsApp browser:', error);
-//                    return res.json({
-//                        message: 'Failed to close WhatsApp browser'
-//                    });
-//                }
-//            } else if (control == "deleteClient") {
-//                try {
-//                    if (client == undefined) {
-
-//                        console.log('Whatsapp client is not connected');
-
-//                        return res.json({
-//                            message: 'Client is not exist'
-//                        });
-//                    }
-
-//                    clientArray[res.params.session] = undefined;
-
-//                    return res.json({
-//                        message: 'WhatsApp client deleted successfully'
-//                    });
-
-//                } catch (error) {
-//                    console.error('Error during delete WhatsApp client:', error);
-//                    return res.json({
-//                        message: 'Failed to delete WhatsApp client'
-//                    });
-//                }
-//            }
-//        }
-//    }
-//}
 
 app.use(apiRoot, router);
 
