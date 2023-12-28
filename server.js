@@ -1085,9 +1085,19 @@ async function listenMessages(client, req) {
             var isCaptionByUser = false;
 
             try {
-                name = ((message.sender.name) != null && (message.sender.name) != '') ? (message.sender.name) : (message.sender.pushname);
+                if (message) {
+                    if (message.sender && message.fromMe == false) {
+                        if (message.sender.name) {
+                            messageSender = message.sender.name;
+                        } else if (message.sender.pushname) {
+                            messageSender = message.sender.pushname;
+                        }
+                    } else if (message.notifyName && message.fromMe == false) {
+                        messageSender = message.notifyName;
+                    }
+                }
             } catch (e) {
-                name = '';
+                messageSender = '';
             }
 
             try {
@@ -1109,16 +1119,20 @@ async function listenMessages(client, req) {
             }
 
             try {
-                await client.getChatById(message.to)
-                    .then((chat) => {
-                        messageSender = chat.name;
-                    })
-                    .catch((error) => {
-                        messageSender = name;
-                    });
-            } catch (e) {
-                messageSender = name;
-            }
+                if (!messageSender) {
+                    await client.getChatById(mobileNumber)
+                        .then((result) => {
+                            if (result) {
+                                if (result.contact) {
+                                    if (result.contact.pushname) {
+                                        messageSender = result.contact.pushname
+                                    }
+                                }
+                            }
+                        })
+                        .catch((error) => {});
+                } 
+            } catch (e) {}
 
             try {
                 isMyContact = message.sender.isMyContact;
