@@ -209,7 +209,7 @@ router.get("/:session/connect_v1", async function (req, res) {
             } else if (promiseStatus === 'fullfilled') {
                 browserMessage = browserSession[req.params.session];
             }
-            while (browserSession[req.params.session].wppconnect != "Completed" && limit > 0) {
+            while ((browserSession[req.params.session].wppconnect != 'Completed' && browserSession[req.params.session].status != 'waitForLogin' && limit > 0)) {
                 limit--;
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
@@ -227,7 +227,7 @@ router.get("/:session/connect_v1", async function (req, res) {
         await browserSession[req.params.session].wppconnect;
 
         return res.json({
-            message: browserMessage
+            message: browserSession[req.params.session]
         });
     } catch (error) {
         console.error(error);
@@ -1168,6 +1168,19 @@ async function listenMessages(client, req) {
 
                     break;
                 case 'chat':
+                    if (message.body) {
+                        try {
+                            if (message.subtype == 'url') {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            } else {
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            }
+                        } catch (e) {
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                        }
+                    }
+                    break;
+                case 'ciphertext':
                     if (message.body) {
                         try {
                             if (message.subtype == 'url') {
