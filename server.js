@@ -803,22 +803,38 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
 
     var messageType = req.body.messageType;
     var messageSalesGpt = req.body.salesGpt;
+    var limit = 10;
 
     try {
         let client = clientArray[req.params.session];
 
         var chatExist = false;
 
-        if (client != undefined) {
-            if (await client.getConnectionState() != "CONNECTED") {
-                return res.status(400).json("notLogged.");
+        if (clientArray[req.params.session] != undefined) {
+
+            var browserStatus = 'Pending';
+
+            try {
+                browserStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+            } catch (error) {
+                browserStatus = 'Pending'
+            }
+
+            while (browserStatus == 'Pending' && limit > 0) {
+                limit--;
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                try {
+                    browserStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+                } catch (error) {
+                    browserStatus = 'Pending'
+                }
             }
         }
         else {
             return res.status(400).json("notLogged.");
         }
 
-        await client
+        await clientArray[req.params.session]
             .checkNumberStatus(req.body.phoneNumber + '@c.us')
             .then((result) => {
                 if (result.numberExists) {
@@ -838,7 +854,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
         try {
             var isChatInContact = false;
 
-            await client.getChatById(req.body.phoneNumber + '@c.us')
+            await clientArray[req.params.session].getChatById(req.body.phoneNumber + '@c.us')
                 .then((result) => {
                     if (result) {
                         isChatInContact = true
@@ -847,7 +863,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                 .catch((error) => { });
 
             if (isChatInContact == true) {
-                await client.startTyping(req.body.phoneNumber + '@c.us', 2000);
+                await clientArray[req.params.session].startTyping(req.body.phoneNumber + '@c.us', 2000);
             }
         } catch (error) { }
 
@@ -857,11 +873,11 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     return res.status(400).json("textMessage required.");
                     break;
                 }
-                await client
+                await clientArray[req.params.session]
                     .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
                     .then((result) => {
                         if (messageSalesGpt == 'true') {
-                            callWebHook(client, req, 'labelmessage', { messageId: result.id });
+                            callWebHook(clientArray[req.params.session], req, 'labelmessage', { messageId: result.id });
                         }
 
                         return res.json(result); //return object success
@@ -880,7 +896,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     return res.status(400).json("imageName required.");
                     break;
                 }
-                await client
+                await clientArray[req.params.session]
                     .sendImage(
                         req.body.phoneNumber + '@c.us',
                         req.body.imageString,
@@ -901,7 +917,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     return res.status(400).json("link required.");
                     break;
                 }
-                await client
+                await clientArray[req.params.session]
                     .sendLinkPreview(
                         req.body.phoneNumber + '@c.us',
                         req.body.linkString,
@@ -921,7 +937,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     return res.status(400).json("file required.");
                     break;
                 }
-                await client
+                await clientArray[req.params.session]
                     .sendFile(
                         req.body.phoneNumber + '@c.us',
                         req.body.fileString,
@@ -946,7 +962,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     break;
                 }
 
-                await client
+                await clientArray[req.params.session]
                     .sendText(
                         req.body.phoneNumber + '@c.us',
                         req.body.textMessage,
