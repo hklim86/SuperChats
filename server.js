@@ -835,7 +835,21 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             return res.status(400).json('chatNotExists');
         }
 
-        await client.startTyping(req.body.phoneNumber + '@c.us', 2000);
+        try {
+            var isChatInContact = false;
+
+            await client.getChatById(req.body.phoneNumber + '@c.us')
+                .then((result) => {
+                    if (result) {
+                        isChatInContact = true
+                    }
+                })
+                .catch((error) => { });
+
+            if (isChatInContact == true) {
+                await client.startTyping(req.body.phoneNumber + '@c.us', 2000);
+            }
+        } catch (error) { }
 
         switch (messageType) {
             case 'text':
