@@ -980,7 +980,33 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
 
                 delete browserSession[req.params.session].pauseListen;
                 break;
+            case 'pool':
+                if (!req.body.poolMessage) {
+                    return res.status(400).json("pool required.");
+                    break;
+                } else if (!req.body.poolName) {
+                    return res.status(400).json("pool name required.");
+                    break;
+                }
 
+                await clientArray[req.params.session]
+                    .sendPollMessage(
+                        req.body.phoneNumber + '@c.us',
+                        req.body.poolName,
+                        JSON.parse(req.body.poolMessage),
+                        {
+                            selectableCount: 1,
+                        }
+                    )
+                    .then((result) => {
+                        return res.json(result); //return object success
+                    })
+                    .catch((e) => {
+                        return res.status(400).json({ message: e }); //return object error
+                    });
+
+                delete browserSession[req.params.session].pauseListen;
+                break;
             default:
                 console.log(`Received message of unknown type ${message.type}: ${message.body}`);
                 break;
@@ -1080,6 +1106,7 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                 await listenMessages(client, req);
                 await listenAcks(client, req);
                 await onRevokedMessage(client, req);
+                await onPollResponse(client, req);
             }
 
             if (isChannel === true) {
@@ -1353,6 +1380,16 @@ async function listenMessages(client, req) {
                     callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
+                case 'poll_creation':
+                    var poll = '';
+
+                    try {
+                        poll = JSON.stringify(message.pollOptions);
+                    } catch (e) { }
+
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'pool', message: poll, filename: message.pollName, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+
+                    break;
                 default:
                     console.log(`Received message of unknown type ${message.type}: ${message.body}`);
                     break;
@@ -1377,6 +1414,19 @@ async function onPresenceChanged(client, req) {
     try {
         await client.onPresenceChanged(async (result) => {
             callWebHook(client, req, 'onpresencechanged', result);
+        });
+    } catch (e) {
+
+    }
+}
+
+async function onPollResponse(client, req) {
+    try {
+        await client.onPollResponse(async (result) => {
+
+            result.session = client.session;
+
+            callWebHook(client, req, 'onPollResponse', result);
         });
     } catch (e) {
 
