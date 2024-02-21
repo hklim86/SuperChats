@@ -1172,6 +1172,7 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             console.log(e);
             return null;
         });
+        return client;
     } catch (error) {
         console.log('/*************************************error2*************************************/');
         console.log(error);
