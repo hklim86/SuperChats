@@ -848,16 +848,11 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     try {
         var chatExist = false;
 
-        await waitForClientLoad(req.params.session);
-
         if (clientArray[req.params.session] != undefined) {
 
             while (browserSession[req.params.session].wppconnect != "Completed") {
-                while (browserSession[req.params.session].wppconnect != "Completed") {
-                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                    break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
