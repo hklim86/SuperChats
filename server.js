@@ -853,11 +853,12 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
         if (clientArray[req.params.session] != undefined) {
 
             while (browserSession[req.params.session].wppconnect != "Completed") {
-                if (!browserSession[req.params.session]) {
-                    //console.log('-------stop looping-------');
-                    break;
+                while (browserSession[req.params.session].wppconnect != "Completed") {
+                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
@@ -1081,7 +1082,10 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     qrcode: base64Qrimg,
                     wppconnect: 'fullfilled'
                 };
-                sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode });
+
+                try {
+                    sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode });
+                } catch (e) { }
 
                 return res.json({
                     message: browserSession[req.params.session]
@@ -1089,24 +1093,42 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             },
             statusFind: async function (statusSession, session) {
                 if (statusSession === 'desconnectedMobile') {
-                    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
+                    try {
+                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
+                    } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
                     if (browserSession[session]) {
-                        if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
-                            sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
-                        }
-                        browserSession[session] = undefined;
+                        try {
+                            if (!(('offHook' in browserSession[req.params.session]) && browserSession[req.params.session].offHook === false) && isChannel == true) {
+                                sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                            }
+                        } catch (e) { }
+
+                        try {
+                            browserSession[req.params.session] = undefined;
+                        } catch (e) { }
                     }
                     //console.log('Whatsapp browserClose');
                 } else if (statusSession == 'isLogged') {
-                    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    try {
+                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    } catch (e) { }
                 } else if (statusSession === 'notLogged') {
-                    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    try {
+                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    } catch (e) { }
                 } else if (statusSession === 'inChat') {
-                    browserSession[req.params.session].wppconnect = "Completed";
-                    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'inChat' });
+                    try {
+                        browserSession[req.params.session].wppconnect = "Completed";
+                    } catch (e) { }
+
+                    try {
+                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'inChat' });
+                    } catch (e) { }
                 } else {
-                    sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    try {
+                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                    } catch (e) { }
                 }
             },
             headless: true, // Headless chrome
@@ -1130,10 +1152,12 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                 wppconnect: 'fullfilled'
             };
             if (listenMessage === true) {
-                await listenMessages(client, req);
-                await listenAcks(client, req);
-                await onRevokedMessage(client, req);
-                await onPollResponse(client, req);
+                try {
+                    await listenMessages(client, req);
+                    await listenAcks(client, req);
+                    await onRevokedMessage(client, req);
+                    await onPollResponse(client, req);
+                } catch (e) { }
             }
 
             if (isChannel === true) {
@@ -1148,7 +1172,6 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             console.log(e);
             return null;
         });
-        return client;
     } catch (error) {
         console.log('/*************************************error2*************************************/');
         console.log(error);
