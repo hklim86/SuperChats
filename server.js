@@ -849,7 +849,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
         var chatExist = false;
 
         if (clientArray[req.params.session] != undefined) {
-            if (browserSession[req.params.session]) {
+            if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
                 while (browserSession[req.params.session].wppconnect != "Completed") {
                     if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
                         break;
