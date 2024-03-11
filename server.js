@@ -849,12 +849,13 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
         var chatExist = false;
 
         if (clientArray[req.params.session] != undefined) {
-
-            while (browserSession[req.params.session].wppconnect != "Completed") {
-                if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-                    break;
+            if (browserSession[req.params.session]) {
+                while (browserSession[req.params.session].wppconnect != "Completed") {
+                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-                await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
         else {
@@ -1075,7 +1076,8 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                 browserSession[req.params.session] = {
                     status: 'waitForLogin',
                     qrcode: base64Qrimg,
-                    wppconnect: 'fullfilled'
+                    wppconnect: 'fullfilled',
+                    ischannel: isChannel
                 };
 
                 try {
@@ -1144,7 +1146,8 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
         }).then(async function (client) {
             browserSession[req.params.session] = {
                 status: 'isLogged',
-                wppconnect: 'fullfilled'
+                wppconnect: 'fullfilled',
+                ischannel: isChannel
             };
             if (listenMessage === true) {
                 try {
