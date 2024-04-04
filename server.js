@@ -848,36 +848,36 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     try {
         var chatExist = false;
 
-        if (clientArray[req.params.session] != undefined) {
-            if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
-                while (browserSession[req.params.session].wppconnect != "Completed") {
-                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-            }
-        }
-        else {
-            return res.status(400).json("notLogged.");
-        }
+        // if (clientArray[req.params.session] != undefined) {
+        //     if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
+        //         while (browserSession[req.params.session].wppconnect != "Completed") {
+        //             if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+        //                 break;
+        //             }
+        //             await new Promise(resolve => setTimeout(resolve, 200));
+        //         }
+        //     }
+        // }
+        // else {
+        //     return res.status(400).json("notLogged.");
+        // }
 
-        await clientArray[req.params.session]
-            .checkNumberStatus(req.body.phoneNumber + '@c.us')
-            .then((result) => {
-                if (result.numberExists) {
-                    chatExist = true;
-                } else {
-                    chatExist = false;
-                }
-            })
-            .catch((e) => {
-                chatExist = false;
-            });
+        // await clientArray[req.params.session]
+        //     .checkNumberStatus(req.body.phoneNumber + '@c.us')
+        //     .then((result) => {
+        //         if (result.numberExists) {
+        //             chatExist = true;
+        //         } else {
+        //             chatExist = false;
+        //         }
+        //     })
+        //     .catch((e) => {
+        //         chatExist = false;
+        //     });
 
-        if (chatExist == false) {
-            return res.status(400).json('chatNotExists');
-        }
+        // if (chatExist == false) {
+        //     return res.status(400).json('chatNotExists');
+        // }
 
         try {
             var isChatInContact = false;
