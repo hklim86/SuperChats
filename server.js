@@ -218,7 +218,6 @@ router.get("/:session/connect_v1", async function (req, res) {
             message: browserSession[req.params.session]
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: "An error occurred." });
     }
 });
@@ -848,19 +847,19 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     try {
         var chatExist = false;
 
-        // if (clientArray[req.params.session] != undefined) {
-        //     if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
-        //         while (browserSession[req.params.session].wppconnect != "Completed") {
-        //             if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-        //                 break;
-        //             }
-        //             await new Promise(resolve => setTimeout(resolve, 200));
-        //         }
-        //     }
-        // }
-        // else {
-        //     return res.status(400).json("notLogged.");
-        // }
+        if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
+            if (clientArray[req.params.session] != undefined) {
+                while (browserSession[req.params.session].wppconnect != "Completed") {
+                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        }
 
         // await clientArray[req.params.session]
         //     .checkNumberStatus(req.body.phoneNumber + '@c.us')
@@ -1105,7 +1104,6 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                             browserSession[req.params.session] = undefined;
                         } catch (e) { }
                     }
-                    //console.log('Whatsapp browserClose');
                 } else if (statusSession == 'isLogged') {
                     try {
                         sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
