@@ -859,24 +859,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             else {
                 return res.status(400).json("notLogged.");
             }
-        }
-
-        // await clientArray[req.params.session]
-        //     .checkNumberStatus(req.body.phoneNumber + '@c.us')
-        //     .then((result) => {
-        //         if (result.numberExists) {
-        //             chatExist = true;
-        //         } else {
-        //             chatExist = false;
-        //         }
-        //     })
-        //     .catch((e) => {
-        //         chatExist = false;
-        //     });
-
-        // if (chatExist == false) {
-        //     return res.status(400).json('chatNotExists');
-        // }
+        } 
 
         try {
             var isChatInContact = false;
