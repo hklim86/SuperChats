@@ -840,21 +840,21 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     var messageSalesGpt = req.body.salesGpt;
 
     try {
-        var chatExist = false;
-
-        if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
-            if (clientArray[req.params.session] != undefined) {
-                while (browserSession[req.params.session].wppconnect != "Completed") {
-                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-                        break;
+        try {
+            if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
+                if (clientArray[req.params.session] != undefined) {
+                    while (browserSession[req.params.session].wppconnect != "Completed") {
+                        if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                            break;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 200));
                     }
-                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-            }
-            else {
-                return res.status(400).json("notLogged.");
-            }
-        } 
+                else {
+                    return res.status(400).json("notLogged.");
+                }
+            } 
+        } catch (error) { }
 
         try {
             var isChatInContact = false;
@@ -876,7 +876,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'text':
                 if (!req.body.textMessage) {
                     return res.status(400).json("textMessage required.");
-                    break;
                 }
                 await clientArray[req.params.session]
                     .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
@@ -896,10 +895,8 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'image':
                 if (!req.body.imageString) {
                     return res.status(400).json("image required.");
-                    break;
                 } else if (!req.body.imageName) {
                     return res.status(400).json("imageName required.");
-                    break;
                 }
                 await clientArray[req.params.session]
                     .sendImage(
@@ -920,7 +917,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'link':
                 if (!req.body.linkString) {
                     return res.status(400).json("link required.");
-                    break;
                 }
                 await clientArray[req.params.session]
                     .sendLinkPreview(
@@ -940,7 +936,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'file':
                 if (!req.body.fileString) {
                     return res.status(400).json("file required.");
-                    break;
                 }
                 await clientArray[req.params.session]
                     .sendFile(
@@ -961,10 +956,8 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'button':
                 if (!req.body.textMessage) {
                     return res.status(400).json("textMessage required.");
-                    break;
                 } else if (!req.body.buttons) {
                     return res.status(400).json("button required.");
-                    break;
                 }
 
                 await clientArray[req.params.session]
@@ -988,10 +981,8 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'pool':
                 if (!req.body.poolMessage) {
                     return res.status(400).json("pool required.");
-                    break;
                 } else if (!req.body.poolName) {
                     return res.status(400).json("pool name required.");
-                    break;
                 }
 
                 await clientArray[req.params.session]
@@ -1015,10 +1006,9 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             default:
                 console.log(`Received message of unknown type ${message.type}: ${message.body}`);
                 break;
-
         }
     } catch (error) {
-        return res.status(400).json("notLogged.");
+        return res.status(400).json(error.toString());
     }
 });
 
@@ -1044,9 +1034,7 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
     try {
         return await wppconnect.create({
-            //session
-            session: req.params.session, //Pass the name of the client you want to start the bot
-            //catchQR
+            session: req.params.session,
             catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
                 browserSession[req.params.session] = {
                     status: 'waitForLogin',
@@ -1140,14 +1128,9 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
 
             return client;
         }).catch((e) => {
-            console.log('/*************************************error*************************************/');
-            console.log(e);
             return null;
         });
-    } catch (error) {
-        console.log('/*************************************error2*************************************/');
-        console.log(error);
-    }
+    } catch (error) { }
 }
 
 async function listenMessages(client, req) {
