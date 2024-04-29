@@ -218,28 +218,20 @@ router.get("/:session/connect_v1", async function (req, res) {
 });
 
 router.get("/:session/disconnect", async function (req, res) {
-    let client = clientArray[req.params.session];
-
-    if (client != null) {
-
+    if (clientArray[req.params.session] != null) {
         try {
-            await client.getConnectionState();
-
-            await clientArray[req.params.session].isMainReady();
-
-            await client.logout();
-
-            await client.close();
-
+            await clientArray[req.params.session].logout();
+            await clientArray[req.params.session].close();
         } catch {
-
-            callWebHook(client, req, 'status-find', { status: 'browserClose' });
+            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
 
             return res.json({
                 message: "logout"
             });
         } finally {
-            callWebHook(client, req, 'status-find', { status: 'browserClose' });
+            browserSession[req.params.session] = undefined;
+            clientArray[req.params.session] = undefined;
+            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
         }
         
         return res.json({
