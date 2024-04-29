@@ -109,17 +109,25 @@ router.put("/:session/check", async function (req, res) {
                         }
 
                         if (client) {
+                            try {
+                                if (offHook) {
+                                    Object.assign(browserSession[req.params.session], {
+                                        offHook: offHook
+                                    });
+                                }
+                            } catch(error) {}
 
-                            if (offHook) {
-                                Object.assign(browserSession[req.params.session], {
-                                    offHook: offHook
-                                });
-                            }
+                            try {
+                                await client.close();
+                            } catch(error) { }
 
-                            await client.close();
+                            try {
+                                delete browserSession[req.params.session];
+                            } catch(error) { } 
 
-                            browserSession[req.params.session] = undefined;
-                            clientArray[req.params.session] = undefined;
+                            try {
+                                delete clientArray[req.params.session];    
+                            } catch(error) { } 
 
                             return res.json({
                                 message: 'WhatsApp client closed successfully'
@@ -233,8 +241,13 @@ router.get("/:session/disconnect", async function (req, res) {
                 await client.close();
             } catch (error) {}
 
-            delete browserSession[req.params.session];
-            delete clientArray[req.params.session];
+            try {
+                delete browserSession[req.params.session];
+            } catch(error) { } 
+
+            try {
+                delete clientArray[req.params.session];    
+            } catch(error) { } 
 
             return res.json({
                 message: "logout"
@@ -827,8 +840,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             case 'image':
                 if (!req.body.imageString) {
@@ -851,8 +862,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             case 'link':
                 if (!req.body.linkString) {
@@ -871,8 +880,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             case 'file':
                 if (!req.body.fileString) {
@@ -892,8 +899,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             case 'button':
                 if (!req.body.textMessage) {
@@ -919,8 +924,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             case 'pool':
                 if (!req.body.poolMessage) {
@@ -946,8 +949,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .catch((e) => {
                         return res.status(400).json({ message: e }); //return object error
                     });
-
-                delete browserSession[req.params.session].pauseListen;
                 break;
             default:
                 console.log(`Received message of unknown type ${message.type}: ${message.body}`);
@@ -981,9 +982,7 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
     try {
         return await wppconnect.create({
-            //session
-            session: req.params.session, //Pass the name of the client you want to start the bot
-            //catchQR
+            session: req.params.session,
             catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
                 browserSession[req.params.session] = {
                     status: 'waitForLogin',
