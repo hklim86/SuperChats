@@ -32,47 +32,6 @@ router.get("/", (req, res) => {
     res.send(executablePath());
 });
 
-router.get("/:session/testing", async function (req, res) {
-    let client = clientArray[req.params.session];
-    let hook = req.query.hook;
-    let chatId = req.query.chatId;
-
-    const GetMessagesParam = {
-        count: 30,
-        direction: null,
-        fromMe: false,
-        id: null
-    }
-
-    client.getAllChats(false).then(async (messages) => {
-
-        console.log(messages);
-
-    }).catch((error) => {
-        console.error('Error retrieving chat messages:', error);
-    });
-
-    client.getAllMessagesInChat('60175406366@c.us', true, false).then(async (messages) => {
-
-        console.log(messages);
-
-    }).catch((error) => {
-        console.error('Error retrieving chat messages:', error);
-    });
-
-    client.getMessages(chatId + '@c.us', GetMessagesParam).then(async (messages) => {
-
-        console.log(messages);
-
-    }).catch((error) => {
-        console.error('Error retrieving chat messages:', error);
-    });
-
-    return res.json({
-        message: 'Retrieve Message SuccessFully'
-    });
-});
-
 router.put("/:session/check", async function (req, res) {
     let client = clientArray[req.params.session];
     let action = req.body.action || false;
@@ -81,44 +40,31 @@ router.put("/:session/check", async function (req, res) {
 
     if (action) {
         if (action == "checking") {
-
-            if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
-                const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
-
+            try {
+                if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
+                    const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+    
+                    return res.json({
+                        message: browserSession[req.params.session]
+                    });
+                } else {
+                    return res.json({
+                        message: 'Whatsapp browser not opened'
+                    });
+                }
+            } catch(error) {
                 return res.json({
-                    message: browserSession[req.params.session]
+                    message: `Failed to check: ${error}`
                 });
             }
-
-            return res.json({
-                message: 'Whatsapp browser not opened'
-            });
-
         } else if (action == "control") {
             if (control) {
                 if (control == "closeClient") {
 
                     try {
-                        if (client == undefined) {
-
-                            console.log('Whatsapp client is not connected');
-
-                            return res.json({
-                                message: 'Client not open'
-                            });
-                        }
-
-                        if (client) {
+                        if (clientArray[req.params.session]) {
                             try {
-                                if (offHook) {
-                                    Object.assign(browserSession[req.params.session], {
-                                        offHook: offHook
-                                    });
-                                }
-                            } catch(error) {}
-
-                            try {
-                                await client.close();
+                                await clientArray[req.params.session].close();
                             } catch(error) { }
 
                             try {
@@ -132,63 +78,50 @@ router.put("/:session/check", async function (req, res) {
                             return res.json({
                                 message: 'WhatsApp client closed successfully'
                             });
+                        } else {
+                            return res.json({
+                                message: 'Client not open'
+                            });
                         }
-
-                        return res.json({
-                            message: 'Client not open'
-                        });
-
                     } catch (error) {
-                        console.error('Error during closing WhatsApp client:', error);
                         return res.json({
-                            message: 'Failed to close WhatsApp client'
+                            message: `Failed to close client: ${error}`
                         });
                     }
-
                 } else if (control == "deleteBrowser") {
                     try {
-                        if (browserSession[res.params.session] == undefined) {
+                        if (browserSession[res.params.session]) {
+                            delete browserSession[res.params.session];
 
-                            console.log('Whatsapp browser is not opened');
-
+                            return res.json({
+                                message: 'WhatsApp browser closed successfully'
+                            });
+                        } else {
                             return res.json({
                                 message: 'Client browser not opened'
                             });
                         }
-
-                        browserSession[res.params.session] = undefined;
-
-                        return res.json({
-                            message: 'WhatsApp browser closed successfully'
-                        });
-
                     } catch (error) {
-                        console.error('Error during closing WhatsApp browser:', error);
                         return res.json({
-                            message: 'Failed to close WhatsApp browser'
+                            message: `Failed to close WhatsApp browser: ${error}`
                         });
                     }
                 } else if (control == "deleteClient") {
                     try {
-                        if (client == undefined) {
+                        if (clientArray[res.params.session]) {
+                            delete clientArray[res.params.session];
 
-                            console.log('Whatsapp client is not connected');
-
+                            return res.json({
+                                message: 'WhatsApp client deleted successfully'
+                            });
+                        } else {
                             return res.json({
                                 message: 'Client is not exist'
                             });
                         }
-
-                        clientArray[res.params.session] = undefined;
-
-                        return res.json({
-                            message: 'WhatsApp client deleted successfully'
-                        });
-
                     } catch (error) {
-                        console.error('Error during delete WhatsApp client:', error);
                         return res.json({
-                            message: 'Failed to delete WhatsApp client'
+                            message: `Failed to delete client: ${error}`
                         });
                     }
                 }
