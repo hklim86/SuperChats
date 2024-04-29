@@ -190,24 +190,29 @@ router.put("/:session/check", async function (req, res) {
 });
 
 router.get("/:session/connect_v1", async function (req, res) {
+    let client = clientArray[req.params.session];
+    let browser = browserSession[req.params.session];
+
     let isChannel = (req.query.isChannel) == 'true' ? true : false;
     let listenMessage = (req.query.listenMessage) == 'false' ? false : true;
 
     try {
-        if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
-            const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+        if (browser && browser.wppconnect) {
+            const promiseStatus = typeof browser.wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
 
             if (promiseStatus === 'Pending') {
-                await browserSession[req.params.session].wppconnect;
+                await browser.wppconnect;
             }
+
+            client = clientArray[req.params.session];
         } else {
             browserSession[req.params.session] = {
                 status: "waitForLogin",
                 wppconnect: createSession(req, res, listenMessage, isChannel, (isChannel === true ? callChannelWebHook : callWebHook))
             };
-
-            await browserSession[req.params.session].wppconnect;
         }
+
+        await browserSession[req.params.session].wppconnect;
 
         return res.json({
             message: browserSession[req.params.session]
@@ -218,20 +223,28 @@ router.get("/:session/connect_v1", async function (req, res) {
 });
 
 router.get("/:session/disconnect", async function (req, res) {
-    if (clientArray[req.params.session] != null) {
+    let client = clientArray[req.params.session];
+
+    if (client != null) {
+
         try {
-            await clientArray[req.params.session].logout();
-            await clientArray[req.params.session].close();
+            await client.getConnectionState();
+
+            await clientArray[req.params.session].isMainReady();
+
+            await client.logout();
+
+            await client.close();
+
         } catch {
-            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
+
+            callWebHook(client, req, 'status-find', { status: 'browserClose' });
 
             return res.json({
                 message: "logout"
             });
         } finally {
-            browserSession[req.params.session] = undefined;
-            clientArray[req.params.session] = undefined;
-            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
+            callWebHook(client, req, 'status-find', { status: 'browserClose' });
         }
         
         return res.json({
@@ -832,21 +845,21 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     var messageSalesGpt = req.body.salesGpt;
 
     try {
-        try {
-            if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
-                if (clientArray[req.params.session] != undefined) {
-                    while (browserSession[req.params.session].wppconnect != "Completed") {
-                        if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
-                            break;
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 200));
+        var chatExist = false;
+
+        if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
+            if (clientArray[req.params.session] != undefined) {
+                while (browserSession[req.params.session].wppconnect != "Completed") {
+                    if (!browserSession[req.params.session] || !clientArray[req.params.session]) {
+                        break;
                     }
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-                else {
-                    return res.status(400).json("notLogged.");
-                }
-            } 
-        } catch (error) { }
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        } 
 
         try {
             var isChatInContact = false;
@@ -868,6 +881,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'text':
                 if (!req.body.textMessage) {
                     return res.status(400).json("textMessage required.");
+                    break;
                 }
                 await clientArray[req.params.session]
                     .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
@@ -887,8 +901,10 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'image':
                 if (!req.body.imageString) {
                     return res.status(400).json("image required.");
+                    break;
                 } else if (!req.body.imageName) {
                     return res.status(400).json("imageName required.");
+                    break;
                 }
                 await clientArray[req.params.session]
                     .sendImage(
@@ -909,6 +925,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'link':
                 if (!req.body.linkString) {
                     return res.status(400).json("link required.");
+                    break;
                 }
                 await clientArray[req.params.session]
                     .sendLinkPreview(
@@ -928,6 +945,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'file':
                 if (!req.body.fileString) {
                     return res.status(400).json("file required.");
+                    break;
                 }
                 await clientArray[req.params.session]
                     .sendFile(
@@ -948,8 +966,10 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'button':
                 if (!req.body.textMessage) {
                     return res.status(400).json("textMessage required.");
+                    break;
                 } else if (!req.body.buttons) {
                     return res.status(400).json("button required.");
+                    break;
                 }
 
                 await clientArray[req.params.session]
@@ -973,8 +993,10 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             case 'pool':
                 if (!req.body.poolMessage) {
                     return res.status(400).json("pool required.");
+                    break;
                 } else if (!req.body.poolName) {
                     return res.status(400).json("pool name required.");
+                    break;
                 }
 
                 await clientArray[req.params.session]
@@ -998,9 +1020,10 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             default:
                 console.log(`Received message of unknown type ${message.type}: ${message.body}`);
                 break;
+
         }
     } catch (error) {
-        return res.status(400).json(error.toString());
+        return res.status(400).json("notLogged.");
     }
 });
 
@@ -1024,9 +1047,13 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
 });
 
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
+    let client = clientArray[req.params.session];
+
     try {
         return await wppconnect.create({
-            session: req.params.session,
+            //session
+            session: req.params.session, //Pass the name of the client you want to start the bot
+            //catchQR
             catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
                 browserSession[req.params.session] = {
                     status: 'waitForLogin',
@@ -1111,18 +1138,24 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     await onPollResponse(client, req);
                 } catch (e) { }
             }
-       
+
             if (isChannel === true) {
                 client.startPhoneWatchdog();
             }
-       
+
             clientArray[req.params.session] = client;
-       
+
             return client;
         }).catch((e) => {
+            console.log('/*************************************error*************************************/');
+            console.log(e);
             return null;
         });
-    } catch (error) {}
+        return client;
+    } catch (error) {
+        console.log('/*************************************error2*************************************/');
+        console.log(error);
+    }
 }
 
 async function listenMessages(client, req) {
