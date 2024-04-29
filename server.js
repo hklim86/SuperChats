@@ -1098,39 +1098,27 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             tokenStore: 'file', // Define how work with tokens, that can be a custom interface
             folderNameToken: './tokens', //folder name when saving tokens
         }).then(async function (client) {
-            if (client && client.isConnected) {
-                browserSession[req.params.session] = {
-                    status: 'isLogged',
-                    wppconnect: 'fullfilled',
-                    ischannel: isChannel
-                };
-                if (listenMessage === true) {
-                    try {
-                        await listenMessages(client, req);
-                        await listenAcks(client, req);
-                        await onRevokedMessage(client, req);
-                        await onPollResponse(client, req);
-                    } catch (e) { }
-                }
-           
-                if (isChannel === true) {
-                    client.startPhoneWatchdog();
-                }
-           
-                clientArray[req.params.session] = client;
-           
-                return client;
-            } else {
+            browserSession[req.params.session] = {
+                status: 'isLogged',
+                wppconnect: 'fullfilled',
+                ischannel: isChannel
+            };
+            if (listenMessage === true) {
                 try {
-                    await clientArray[req.params.session].logout();
-                    await clientArray[req.params.session].close();
-                } catch { }
-           
-                browserSession[req.params.session] = undefined;
-                clientArray[req.params.session] = undefined;
-           
-                return client;
+                    await listenMessages(client, req);
+                    await listenAcks(client, req);
+                    await onRevokedMessage(client, req);
+                    await onPollResponse(client, req);
+                } catch (e) { }
             }
+       
+            if (isChannel === true) {
+                client.startPhoneWatchdog();
+            }
+       
+            clientArray[req.params.session] = client;
+       
+            return client;
         }).catch((e) => {
             return null;
         });
