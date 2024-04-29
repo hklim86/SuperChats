@@ -223,7 +223,7 @@ router.get("/:session/disconnect", async function (req, res) {
             await clientArray[req.params.session].logout();
             await clientArray[req.params.session].close();
         } catch {
-            callWebHook(req, 'status-find', { status: 'browserClose' });
+            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
 
             return res.json({
                 message: "logout"
@@ -231,7 +231,7 @@ router.get("/:session/disconnect", async function (req, res) {
         } finally {
             browserSession[req.params.session] = undefined;
             clientArray[req.params.session] = undefined;
-            callWebHook(req, 'status-find', { status: 'browserClose' });
+            callWebHook(clientArray[req.params.session], req, 'status-find', { status: 'browserClose' });
         }
         
         return res.json({
@@ -327,7 +327,7 @@ router.get("/:session/closeSession", async function (req, res) {
         if (clientConnection == "CONNECTED") {
             await client.logout();
 
-            callWebHook(req, 'status-find', { status: 'logout' });
+            callWebHook(client, req, 'status-find', { status: 'logout' });
 
             return res.json({
                 message: "logout"
@@ -873,7 +873,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     .sendText(req.body.phoneNumber + '@c.us', req.body.textMessage)
                     .then((result) => {
                         if (messageSalesGpt == 'true') {
-                            callWebHook(req, 'labelmessage', { messageId: result.id });
+                            callWebHook(clientArray[req.params.session], req, 'labelmessage', { messageId: result.id });
                         }
 
                         return res.json(result); //return object success
@@ -1211,12 +1211,12 @@ async function listenMessages(client, req) {
                     if (message.body) {
                         try {
                             if (message.subtype == 'url') {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             } else {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             }
                         } catch (e) {
-                            callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                         }
                     }
 
@@ -1225,12 +1225,12 @@ async function listenMessages(client, req) {
                     if (message.body) {
                         try {
                             if (message.subtype == 'url') {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             } else {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             }
                         } catch (e) {
-                            callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                         }
                     }
                     break;
@@ -1238,12 +1238,12 @@ async function listenMessages(client, req) {
                     if (message.body) {
                         try {
                             if (message.subtype == 'url') {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: message.body, description: message.title, thumbnail: message.thumbnail, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             } else {
-                                callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                                callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                             }
                         } catch (e) {
-                            callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                            callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'text', message: message.body, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
                         }
                     }
                     break;
@@ -1260,7 +1260,7 @@ async function listenMessages(client, req) {
                         filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: pttMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'image':
@@ -1282,7 +1282,7 @@ async function listenMessages(client, req) {
                         isCaptionByUser = (message.caption == undefined ? false : true);
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'image', message: imageMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'audio':
@@ -1302,7 +1302,7 @@ async function listenMessages(client, req) {
                         isCaptionByUser = (message.caption == undefined ? false : true);
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'audio', message: audioMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'video':
@@ -1322,7 +1322,7 @@ async function listenMessages(client, req) {
                         isCaptionByUser = (message.caption == undefined ? false : true);
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'video', message: videoMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'document':
@@ -1342,7 +1342,7 @@ async function listenMessages(client, req) {
                         isCaptionByUser = (message.caption == undefined ? false : true);
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'document', message: docMedia, filename: filename, isCaptionByUser: isCaptionByUser, caption: message.caption, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'sticker':
@@ -1358,7 +1358,7 @@ async function listenMessages(client, req) {
                         filename = message.id.toString() + '.' + message.mimetype.split('/')[1];
                     } catch { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'sticker', message: stickerMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'voice':
@@ -1374,7 +1374,7 @@ async function listenMessages(client, req) {
                         filename = `${message.t}.${message.mimetype.split('/')[1]}`;
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'voice', message: voiceMedia, filename: filename, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 case 'poll_creation':
@@ -1384,7 +1384,7 @@ async function listenMessages(client, req) {
                         poll = JSON.stringify(message.pollOptions);
                     } catch (e) { }
 
-                    callWebHook(req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'pool', message: poll, filename: message.pollName, session: message.session, timeStamp: message.timestamp, messageId: message.id });
+                    callWebHook(client, req, 'onmessage', { from: messageSender, fromMe: message.fromMe, fromContact: isMyContact, mobileNumber: mobileNumber, profilePicture: profilePicture, type: 'pool', message: poll, filename: message.pollName, session: message.session, timeStamp: message.timestamp, messageId: message.id });
 
                     break;
                 default:
@@ -1400,7 +1400,7 @@ async function listenMessages(client, req) {
 async function listenAcks(client, req) {
     try {
         await client.onAck(async (result) => {
-            callWebHook(req, 'onack', result);
+            callWebHook(client, req, 'onack', result);
         });
     } catch (e) {
 
@@ -1410,7 +1410,7 @@ async function listenAcks(client, req) {
 async function onPresenceChanged(client, req) {
     try {
         await client.onPresenceChanged(async (result) => {
-            callWebHook(req, 'onpresencechanged', result);
+            callWebHook(client, req, 'onpresencechanged', result);
         });
     } catch (e) {
 
@@ -1423,7 +1423,7 @@ async function onPollResponse(client, req) {
 
             result.session = client.session;
 
-            callWebHook(req, 'onPollResponse', result);
+            callWebHook(client, req, 'onPollResponse', result);
         });
     } catch (e) {
 
@@ -1436,7 +1436,7 @@ async function onRevokedMessage(client, req) {
 
             result.session = client.session;
 
-            callWebHook(req, 'onrevokedmessage', result);
+            callWebHook(client, req, 'onrevokedmessage', result);
         });
     } catch (e) {
 
@@ -1484,7 +1484,7 @@ async function getWhatsappInfo(client, req) {
     }
 }
 
-async function callChannelWebHook(req, event, data) {
+async function callChannelWebHook(client, req, event, data) {
     const webhook = req.query.hook || false;
 
     if (webhook) {
@@ -1501,7 +1501,7 @@ async function callChannelWebHook(req, event, data) {
     }
 }
 
-async function callWebHook(req, event, data) {
+async function callWebHook(client, req, event, data) {
     const webhook = req.query.hook || false;
 
     if (webhook) {
