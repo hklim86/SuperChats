@@ -197,22 +197,20 @@ router.get("/:session/connect_v1", async function (req, res) {
     let listenMessage = (req.query.listenMessage) == 'false' ? false : true;
 
     try {
-        if (browser && browser.wppconnect) {
-            const promiseStatus = typeof browser.wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
+        if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
+            const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
 
             if (promiseStatus === 'Pending') {
-                await browser.wppconnect;
+                await browserSession[req.params.session].wppconnect;
             }
-
-            client = clientArray[req.params.session];
         } else {
             browserSession[req.params.session] = {
                 status: "waitForLogin",
                 wppconnect: createSession(req, res, listenMessage, isChannel, (isChannel === true ? callChannelWebHook : callWebHook))
             };
-        }
 
-        await browserSession[req.params.session].wppconnect;
+            await browserSession[req.params.session].wppconnect;
+        }
 
         return res.json({
             message: browserSession[req.params.session]
@@ -228,9 +226,6 @@ router.get("/:session/disconnect", async function (req, res) {
     if (client != null) {
 
         try {
-            await client.getConnectionState();
-
-            await clientArray[req.params.session].isMainReady();
 
             await client.logout();
 
@@ -244,6 +239,8 @@ router.get("/:session/disconnect", async function (req, res) {
                 message: "logout"
             });
         } finally {
+            browserSession[req.params.session] = undefined;
+            clientArray[req.params.session] = undefined;
             callWebHook(client, req, 'status-find', { status: 'browserClose' });
         }
         
@@ -1047,8 +1044,6 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
 });
 
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
-    let client = clientArray[req.params.session];
-
     try {
         return await wppconnect.create({
             //session
@@ -1125,11 +1120,14 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             tokenStore: 'file', // Define how work with tokens, that can be a custom interface
             folderNameToken: './tokens', //folder name when saving tokens
         }).then(async function (client) {
+            clientArray[req.params.session] = client;
+
             browserSession[req.params.session] = {
                 status: 'isLogged',
                 wppconnect: 'fullfilled',
                 ischannel: isChannel
             };
+
             if (listenMessage === true) {
                 try {
                     await listenMessages(client, req);
@@ -1143,19 +1141,12 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                 client.startPhoneWatchdog();
             }
 
-            clientArray[req.params.session] = client;
-
             return client;
         }).catch((e) => {
-            console.log('/*************************************error*************************************/');
-            console.log(e);
             return null;
         });
         return client;
-    } catch (error) {
-        console.log('/*************************************error2*************************************/');
-        console.log(error);
-    }
+    } catch (error) { }
 }
 
 async function listenMessages(client, req) {
