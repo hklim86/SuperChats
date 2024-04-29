@@ -224,13 +224,7 @@ router.get("/:session/disconnect", async function (req, res) {
     let client = clientArray[req.params.session];
 
     try {
-        if (client == undefined) {
-            return res.json({
-                message: "logout"
-            });
-        }
-
-        if (client) {
+        if (clientArray[req.params.session]) {
             try {
                 await client.logout();
             } catch (error) {}
@@ -239,21 +233,20 @@ router.get("/:session/disconnect", async function (req, res) {
                 await client.close();
             } catch (error) {}
 
-            browserSession[req.params.session] = undefined;
-            clientArray[req.params.session] = undefined;
+            delete browserSession[req.params.session];
+            delete clientArray[req.params.session];
 
             return res.json({
                 message: "logout"
             });
+        } else {
+            return res.json({
+                message: "notLogged"
+            });
         }
-
-        return res.json({
-            message: "notLogged"
-        });
-
     } catch (error) {
         return res.json({
-            message: "notLogged"
+            message: error.toString()
         });
     }
 });
@@ -607,68 +600,6 @@ router.post("/:session/checkProfilePicFromServer", async function (req, res) {
             if (await client.getConnectionState() == "CONNECTED") {
                 await client
                     .getProfilePicFromServer(req.body.phoneNumber + '@c.us')
-                    .then((result) => {
-                        return res.json(result); //return object success
-                    })
-                    .catch((e) => {
-                        return res.status(400).json({ message: e }); //return object error
-                    });
-            }
-            else {
-                return res.status(400).json("notLogged.");
-            }
-        } catch (e) {
-            return res.status(400).json("notLogged.");
-        }
-
-    }
-    else {
-        return res.status(400).json("notLogged.");
-    }
-});
-
-router.post("/:session/checkContact", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session required.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
-
-    let client = clientArray[req.params.session];
-    console.log(client);
-    if (client != undefined) {
-        try {
-            if (await client.getConnectionState() == "CONNECTED") {
-                await client
-                    .getContact(req.body.phoneNumber + '@c.us')
-                    .then((result) => {
-                        return res.json(result); //return object success
-                    })
-                    .catch((e) => {
-                        return res.status(400).json({ message: e }); //return object error
-                    });
-            }
-            else {
-                return res.status(400).json("notLogged.");
-            }
-        } catch (e) {
-            return res.status(400).json("notLogged.");
-        }
-
-    }
-    else {
-        return res.status(400).json("notLogged.");
-    }
-});
-
-router.post("/:session/checkContact", async function (req, res) {
-    if (!req.params.session) return res.status(400).json("Session required.");
-    if (!req.body.phoneNumber) return res.status(400).json("phoneNumber required.");
-
-    let client = clientArray[req.params.session];
-    console.log(client);
-    if (client != undefined) {
-        try {
-            if (await client.getConnectionState() == "CONNECTED") {
-                await client
-                    .getContact(req.body.phoneNumber + '@c.us')
                     .then((result) => {
                         return res.json(result); //return object success
                     })
