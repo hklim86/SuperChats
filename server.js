@@ -43,7 +43,7 @@ router.put("/:session/check", async function (req, res) {
             try {
                 if (browserSession[req.params.session] && browserSession[req.params.session].wppconnect) {
                     const promiseStatus = typeof browserSession[req.params.session].wppconnect !== 'string' ? 'Pending' : browserSession[req.params.session].wppconnect;
-    
+
                     return res.json({
                         message: browserSession[req.params.session]
                     });
@@ -52,7 +52,7 @@ router.put("/:session/check", async function (req, res) {
                         message: 'Whatsapp browser not opened'
                     });
                 }
-            } catch(error) {
+            } catch (error) {
                 return res.json({
                     message: `Failed to check: ${error}`
                 });
@@ -65,15 +65,15 @@ router.put("/:session/check", async function (req, res) {
                         if (clientArray[req.params.session]) {
                             try {
                                 await clientArray[req.params.session].close();
-                            } catch(error) { }
+                            } catch (error) { }
 
                             try {
                                 delete browserSession[req.params.session];
-                            } catch(error) { } 
+                            } catch (error) { }
 
                             try {
-                                delete clientArray[req.params.session];    
-                            } catch(error) { } 
+                                delete clientArray[req.params.session];
+                            } catch (error) { }
 
                             return res.json({
                                 message: 'WhatsApp client closed successfully'
@@ -168,11 +168,11 @@ router.get("/:session/disconnect", async function (req, res) {
         if (clientArray[req.params.session]) {
             try {
                 await clientArray[req.params.session].logout();
-            } catch (error) {}
+            } catch (error) { }
 
             try {
                 await clientArray[req.params.session].close();
-            } catch (error) {}
+            } catch (error) { }
 
             return res.json({
                 message: "logout"
@@ -225,7 +225,7 @@ router.get("/:session/closeClient", async function (req, res) {
             if (!offHook)
                 Object.assign(browserSession[req.params.session], {
                     offHook: offHook
-            });
+                });
         }
 
         return res.json({
@@ -714,7 +714,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     var messageType = req.body.messageType;
     var messageSalesGpt = req.body.salesGpt;
 
-    try { 
+    try {
         if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
             if (clientArray[req.params.session] != undefined) {
                 while (browserSession[req.params.session].wppconnect != "Completed") {
@@ -727,9 +727,9 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             else {
                 return res.status(400).json("notLogged.");
             }
-        } 
+        }
 
-        try { 
+        try {
             var isChatInContact = false;
 
             await clientArray[req.params.session].getChatById(req.body.phoneNumber + '@c.us')
@@ -865,7 +865,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                         {
                             selectableCount: 1,
                         }
-                    )  
+                    )
                     .then((result) => {
                         return res.json(result); //return object success
                     })
@@ -926,10 +926,10 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: 'desconnectedMobile' });
                     } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                     try {
+                    try {
                         delete browserSession[session];
                     } catch (e) { }
-                    
+
                     try {
                         if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
                             sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
@@ -982,7 +982,7 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     status: 'isLogged',
                     wppconnect: 'fullfilled',
                     ischannel: isChannel
-                };    
+                };
             }
 
             if (listenMessage === true) {
@@ -1064,9 +1064,9 @@ async function listenMessages(client, req) {
                                 }
                             }
                         })
-                        .catch((error) => {});
-                } 
-            } catch (e) {}
+                        .catch((error) => { });
+                }
+            } catch (e) { }
 
             try {
                 isMyContact = message.sender.isMyContact;
