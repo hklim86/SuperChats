@@ -867,7 +867,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                         {
                             selectableCount: 1,
                         }
-                    ) 
+                    )  
                     .then((result) => {
                         return res.json(result); //return object success
                     })
