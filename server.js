@@ -876,7 +876,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             default:
                 break;
         }
-    } catch (error) { 
+    } catch (error) {
         return res.status(400).json("notLogged.");
     }
 });
