@@ -150,7 +150,9 @@ router.get("/:session/connect_v1", async function (req, res) {
                 wppconnect: createSession(req, res, listenMessage, isChannel, (isChannel === true ? callChannelWebHook : callWebHook))
             };
 
-            await browserSession[req.params.session].wppconnect;
+            if (browserSession[req.params.session]) {
+                await browserSession[req.params.session].wppconnect;
+            }
         }
 
         return res.json({
@@ -933,37 +935,39 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             statusFind: async function (statusSession, session) {
                 if (statusSession === 'desconnectedMobile') {
                     try {
-                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: 'desconnectedMobile' });
                     } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                    if (browserSession[req.params.session]) {
+                    if (browserSession[session]) {
                         try {
-                            delete browserSession[req.params.session];
+                            delete browserSession[session];
 
-                            if (!(('offHook' in browserSession[req.params.session]) && browserSession[req.params.session].offHook === false) && isChannel == true) {
-                                sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                            if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
+                                sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
                             }
                         } catch (e) { }
                     }
                 } else if (statusSession == 'isLogged') {
                     try {
-                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
                     } catch (e) { }
                 } else if (statusSession === 'notLogged') {
                     try {
-                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
                     } catch (e) { }
                 } else if (statusSession === 'inChat') {
                     try {
-                        browserSession[req.params.session].wppconnect = "Completed";
+                        if (browserSession[session]) {
+                            browserSession[session].wppconnect = "Completed";
+                        }
                     } catch (e) { }
 
                     try {
-                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'inChat' });
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: 'inChat' });
                     } catch (e) { }
                 } else {
                     try {
-                        sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
                     } catch (e) { }
                 }
             },
