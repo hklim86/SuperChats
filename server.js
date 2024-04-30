@@ -714,7 +714,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     var messageType = req.body.messageType;
     var messageSalesGpt = req.body.salesGpt;
 
-    try {
+    try { 
         var chatExist = false;
 
         if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
@@ -731,7 +731,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
             }
         } 
 
-        try {
+        try { 
             var isChatInContact = false;
 
             await clientArray[req.params.session].getChatById(req.body.phoneNumber + '@c.us')
@@ -880,7 +880,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                 break;
 
         }
-    } catch (error) {
+    } catch (error) { 
         return res.status(400).json("notLogged.");
     }
 });
