@@ -174,14 +174,6 @@ router.get("/:session/disconnect", async function (req, res) {
                 await clientArray[req.params.session].close();
             } catch (error) {}
 
-            try {
-                delete browserSession[req.params.session];
-            } catch(error) { } 
-
-            try {
-                delete clientArray[req.params.session];    
-            } catch(error) { } 
-
             return res.json({
                 message: "logout"
             });
