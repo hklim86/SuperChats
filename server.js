@@ -162,16 +162,14 @@ router.get("/:session/connect_v1", async function (req, res) {
 });
 
 router.get("/:session/disconnect", async function (req, res) {
-    let client = clientArray[req.params.session];
-
     try {
         if (clientArray[req.params.session]) {
             try {
-                await client.logout();
+                await clientArray[req.params.session].logout();
             } catch (error) {}
 
             try {
-                await client.close();
+                await clientArray[req.params.session].close();
             } catch (error) {}
 
             try {
@@ -938,15 +936,13 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                         sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: 'desconnectedMobile' });
                     } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                    if (browserSession[session]) {
+                    if (browserSession[req.params.session]) {
                         try {
+                            delete browserSession[req.params.session];
+
                             if (!(('offHook' in browserSession[req.params.session]) && browserSession[req.params.session].offHook === false) && isChannel == true) {
                                 sendWebhookResult(clientArray[req.params.session], req, 'status-find', { status: statusSession });
                             }
-                        } catch (e) { }
-
-                        try {
-                            browserSession[req.params.session] = undefined;
                         } catch (e) { }
                     }
                 } else if (statusSession == 'isLogged') {
@@ -1012,7 +1008,6 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
         }).catch((e) => {
             return null;
         });
-        return client;
     } catch (error) { }
 }
 
