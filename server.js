@@ -715,8 +715,6 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
     var messageSalesGpt = req.body.salesGpt;
 
     try { 
-        var chatExist = false;
-
         if (browserSession[req.params.session] && browserSession[req.params.session].ischannel == false) {
             if (clientArray[req.params.session] != undefined) {
                 while (browserSession[req.params.session].wppconnect != "Completed") {
@@ -876,9 +874,7 @@ router.post("/:session/sendWhatsappMessage", async function (req, res) {
                     });
                 break;
             default:
-                console.log(`Received message of unknown type ${message.type}: ${message.body}`);
                 break;
-
         }
     } catch (error) { 
         return res.status(400).json("notLogged.");
