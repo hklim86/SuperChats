@@ -930,15 +930,15 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: 'desconnectedMobile' });
                     } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                    if (browserSession[session]) {
-                        try {
-                            delete browserSession[session];
-
-                            if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
-                                sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
-                            }
-                        } catch (e) { }
-                    }
+                     try {
+                        delete browserSession[session];
+                    } catch (e) { }
+                    
+                    try {
+                        if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
+                            sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
+                        }
+                    } catch (e) { }
                 } else if (statusSession == 'isLogged') {
                     try {
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
@@ -981,11 +981,13 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
         }).then(async function (client) {
             clientArray[req.params.session] = client;
 
-            browserSession[req.params.session] = {
-                status: 'isLogged',
-                wppconnect: 'fullfilled',
-                ischannel: isChannel
-            };
+            if (browserSession[req.params.session]) {
+                browserSession[req.params.session] = {
+                    status: 'isLogged',
+                    wppconnect: 'fullfilled',
+                    ischannel: isChannel
+                };    
+            }
 
             if (listenMessage === true) {
                 try {
