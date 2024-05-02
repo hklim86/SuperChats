@@ -33,10 +33,8 @@ router.get("/", (req, res) => {
 });
 
 router.put("/:session/check", async function (req, res) {
-    let client = clientArray[req.params.session];
     let action = req.body.action || false;
     let control = req.body.control || false;
-    let offHook = req.body.offHook || false;
 
     if (action) {
         if (action == "checking") {
@@ -213,13 +211,11 @@ router.get("/:session/checkConnect", async function (req, res) {
 });
 
 router.get("/:session/closeClient", async function (req, res) {
-
-    let client = clientArray[req.params.session];
     let offHook = (req.query.offHook) == 'true' ? true : false;
 
-    if (client != null) {
+    if (clientArray[req.params.session] != null) {
 
-        client.close();
+        clientArray[req.params.session].close();
 
         if (browserSession[req.params.session]) {
             if (!offHook)
@@ -931,9 +927,7 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     } catch (e) { }
 
                     try {
-                        if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
-                            sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
-                        }
+                        sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
                     } catch (e) { }
                 } else if (statusSession == 'isLogged') {
                     try {
