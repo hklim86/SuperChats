@@ -3,6 +3,6 @@
 # Stop all running Chrome processes
 pkill chrome || true
 
-# rm -rf ~/.config/chromium/Singleton*
+rm -rf tokens/*/SingletonLock
 
 node server.js
