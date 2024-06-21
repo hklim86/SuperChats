@@ -979,7 +979,9 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                 };
             }
 
-            await clientArray[req.params.session].setOnlinePresence(false);
+            try {
+                await clientArray[req.params.session].setOnlinePresence(false);
+            } catch {}
 
             if (listenMessage === true) {
                 try {
