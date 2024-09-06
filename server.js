@@ -896,6 +896,30 @@ router.get("/:session/getWhatsappProfile", async function (req, res) {
     }
 });
 
+router.get("/:session/setOnline", async function (req, res) {
+    try {
+        let online = (req.query.online) == 'true' ? true : false;
+
+        if (clientArray[req.params.session]) {
+            try {
+                await clientArray[req.params.session].setOnlinePresence(online);
+            } catch (error) { }
+
+            return res.json({
+                message: "success"
+            });
+        } else {
+            return res.json({
+                message: "no action"
+            });
+        }
+    } catch (error) {
+        return res.json({
+            message: error.toString()
+        });
+    }
+});
+
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
     try {
         return await wppconnect.create({
