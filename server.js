@@ -920,6 +920,27 @@ router.get("/:session/setOnline", async function (req, res) {
     }
 });
 
+router.get("/:session/getwid", async function (req, res) {
+    try {
+        if (clientArray[req.params.session]) {
+            try {
+                var message = await clientArray[req.params.session].getWid();
+                return res.json(message);
+            } catch (error) {
+                return res.json(error);
+            }
+        } else {
+            return res.json({
+                message: "notLogged"
+            });
+        }
+    } catch (error) {
+        return res.json({
+            message: error.toString()
+        });
+    }
+});
+
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
     try {
         return await wppconnect.create({
