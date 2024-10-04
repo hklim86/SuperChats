@@ -643,6 +643,33 @@ router.post("/:session/listChats", async function (req, res) {
     }
 });
 
+router.post("/:session/getAllContact", async function (req, res) {
+    if (!req.params.session) return res.status(400).json("Session required.");
+
+    let client = clientArray[req.params.session];
+
+    if (client != undefined) {
+        try {
+            if (await client.getConnectionState() == "CONNECTED") {
+                await client.getAllContacts().then(async (result) => {
+                    return res.json(result);
+                }).catch((error) => {
+                    return res.status(400).json({ message: e });
+                });
+            }
+            else {
+                return res.status(400).json("notLogged.");
+            }
+        } catch (e) {
+            return res.status(400).json("notLogged.");
+        }
+
+    }
+    else {
+        return res.status(400).json("notLogged.");
+    }
+});
+
 router.post("/:session/getMessageById", async function (req, res) {
     if (!req.params.session) return res.status(400).json("Session required.");
     if (!req.body.messageId) return res.status(400).json("message id required.");
