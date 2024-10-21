@@ -153,6 +153,10 @@ router.get("/:session/connect_v1", async function (req, res) {
             }
         }
 
+        if (res.headersSent) {
+            return;
+        }
+
         return res.json({
             message: browserSession[req.params.session]
         });
@@ -970,37 +974,25 @@ router.get("/:session/getwid", async function (req, res) {
 
 async function createSession(req, res, listenMessage, isChannel, sendWebhookResult = callWebHook) {
     try {
-        return await wppconnect.create({
-            session: req.params.session,
-            catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
-                browserSession[req.params.session] = {
-                    status: 'waitForLogin',
-                    qrcode: base64Qrimg,
-                    wppconnect: 'fullfilled',
-                    ischannel: isChannel
-                };
-
-                try {
-                    sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode });
-                } catch (e) { }
-
-                return res.json({
-                    message: browserSession[req.params.session]
-                });
-            },
+        let sessionOptions = {
+            //session
+            session: req.params.session, //Pass the name of the client you want to start the bot
             statusFind: async function (statusSession, session) {
+                console.log(`------------------${statusSession}------------------`)
                 if (statusSession === 'desconnectedMobile') {
                     try {
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: 'desconnectedMobile' });
                     } catch (e) { }
                 } else if (statusSession === 'autocloseCalled' || statusSession === 'browserClose') {
-                    try {
+                    if (browserSession[session]) {
                         delete browserSession[session];
-                    } catch (e) { }
-
-                    try {
-                        sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
-                    } catch (e) { }
+                        try {
+                            //if (!(('offHook' in browserSession[session]) && browserSession[session].offHook === false) && isChannel == true) {
+                            if (browserSession[session] && !('offHook' in browserSession[session]) && isChannel === true) {
+                                sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
+                            }
+                        } catch (e) { }
+                    }
                 } else if (statusSession == 'isLogged') {
                     try {
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: statusSession });
@@ -1011,11 +1003,9 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     } catch (e) { }
                 } else if (statusSession === 'inChat') {
                     try {
-                        if (browserSession[session]) {
-                            browserSession[session].wppconnect = "Completed";
-                        }
+                        browserSession[session].wppconnect = "Completed";
                     } catch (e) { }
-
+        
                     try {
                         sendWebhookResult(clientArray[session], req, 'status-find', { status: 'inChat' });
                     } catch (e) { }
@@ -1040,7 +1030,44 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
             autoClose: 60000, // Automatically closes the wppconnect only when scanning the QR code (default 60 seconds, if you want to turn it off, assign 0 or false)
             tokenStore: 'file', // Define how work with tokens, that can be a custom interface
             folderNameToken: './tokens', //folder name when saving tokens
-        }).then(async function (client) {
+        };
+        
+        if (req.query.phoneNumber) {
+            sessionOptions.phoneNumber = req.query.phoneNumber;
+            sessionOptions.catchLinkCode = (str) => {
+                browserSession[req.params.session] = {
+                    status: 'waitForLogin',
+                    qrcode: str,
+                    wppconnect: 'fullfilled',
+                    ischannel: isChannel
+                };
+        
+                sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { loginCode: str });
+        
+                return res.json({
+                    message: browserSession[req.params.session]
+                });
+            };
+        } else {
+            sessionOptions.catchQR = (base64Qrimg, asciiQR, attempts, urlCode) => {
+                browserSession[req.params.session] = {
+                    status: 'waitForLogin',
+                    qrcode: base64Qrimg,
+                    wppconnect: 'fullfilled',
+                    ischannel: isChannel
+                };
+        
+                try {
+                    sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { qrcode: base64Qrimg, urlcode: urlCode });
+                } catch (e) { }
+        
+                return res.json({
+                    message: browserSession[req.params.session]
+                });
+            };
+        }
+
+        return await wppconnect.create(sessionOptions).then(async function (client) {
             clientArray[req.params.session] = client;
 
             if (browserSession[req.params.session]) {
