@@ -1042,7 +1042,7 @@ async function createSession(req, res, listenMessage, isChannel, sendWebhookResu
                     ischannel: isChannel
                 };
         
-                sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { loginCode: str });
+                sendWebhookResult(clientArray[req.params.session], req, 'qrcode', { qrcode: str });
         
                 return res.json({
                     message: browserSession[req.params.session]
