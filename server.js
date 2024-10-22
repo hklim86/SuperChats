@@ -956,19 +956,15 @@ router.get("/:session/getwid", async function (req, res) {
         if (clientArray[req.params.session]) {
             try {
                 var message = await clientArray[req.params.session].getWid();
-                return res.json(message);
+                return res.status(200).json(message);
             } catch (error) {
-                return res.json(error);
+                return res.status(500).json(error);
             }
         } else {
-            return res.json({
-                message: "notLogged"
-            });
+            return res.status(401).json("notLogged");
         }
     } catch (error) {
-        return res.json({
-            message: error.toString()
-        });
+        return res.status(500).json(error.toString());
     }
 });
 
